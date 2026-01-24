@@ -1,0 +1,27 @@
+=== data types ===
+
+data Unit where
+  tt : Unit
+
+data Nat where
+  zero : Nat
+  suc  : Nat → Nat
+
+data List where
+  nil  : List
+  cons : Nat → List → List
+
+data OneOfThose where
+  nat  : Nat → Nat → List → OneOfThose
+  list : List → OneOfThose
+  unit : Unit → OneOfThose
+
+
+=== pattern matrix ===
+(nat x zero y) | (nat zero zero nil)  x
+      (list (cons zero nil))          x
+            (unit x)                  x
+
+
+=== type ===
+OneOfThose Nat

@@ -6,7 +6,7 @@ A reusable library to check the correctness and exhaustiveness of nested pattern
 
 ---
 
-The instructions:
+#### The instructions:
 
 - Define set of ADTs with constructors and field types
 - Receives type of initial expression + set of branches (ie. patterns) as inputs
@@ -19,7 +19,7 @@ The instructions:
 
 ---
 
-Code structure:
+#### Code structure:
 
 - src
   - reader
