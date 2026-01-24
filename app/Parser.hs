@@ -85,13 +85,29 @@ lits :: (Eq t) => [t] -> Parser t [t]
 lits []     = pure []
 lits (t:ts) = pure (:) <*> lit t <*> lits ts
 
-data DTypes = DType Name TDefs | DTypeCon DTypes DTypes deriving (Eq, Show)
-data Match1 = Match DTypes PMat TypeToMatch deriving (Eq, Show)
+type Type = String
+data Pattern = PVar String | PType Type | PCons [Pattern] | POr Pattern Pattern deriving (Eq, Show)
+type DTypes = [(String, [Type])]
+type PMat   = [[Pattern]]
+type TypeToMatch = (Type, [Type])
 
-dType :: Parser Char DTypes
-dType = DTypes <$ lits "=== data types ==="
-        <* ws *> 
+data Match = MDTypes DTypes | MPMat PMat | MTypeToMatch TypeToMatch deriving (Eq, Show)
 
+string :: Parser Char String
+string = lit '"' *> many0 (satisfy (/= '"')) <* lit '"'
+
+dtypes :: Parser Char DTypes
+dtypes = many1 dtype where  -- this still needs to be made into one list
+    dtype = toTuple <$ lits "data" *> ws *> string <* lits "where" *> ws *> dTypeDefs *> ws
+        where toTuple name defs = (name, defs) -- this whole thing probably doesn't work
+
+match :: Parser Char Match
+match = MDTypes <$> dtypes
+    <|> MPMat   <$> pmat
+    <|> MTypeToMatch <$> typetomatch
+
+match' :: Parser Char Match
+match' = ws *> match <* ws
 
 data Expr1 = ENat Int | EAdd Expr1 Expr1 deriving (Eq, Show)
 
