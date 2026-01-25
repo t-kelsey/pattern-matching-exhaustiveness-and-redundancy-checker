@@ -1,6 +1,16 @@
 -- Code adapted from the lecture Functional Programming at the University of Freiburg
 -- https://proglang.github.io/teaching/24ws/fp.html
 
+module Parser where
+import Control.Applicative
+import Text.Read (readMaybe)
+import Data.Char (isAlpha)
+import GHC.IO.Handle (hFlush)
+import GHC.IO.Handle.FD (stdout)
+import Data.List (intercalate)
+import Data.Foldable (forM_)
+import Data.List (delete)
+
 newtype Parser t r = Parser { runParser :: [t] -> [(r, [t])] }
 
 -- recognizes the empty language
@@ -85,26 +95,46 @@ lits :: (Eq t) => [t] -> Parser t [t]
 lits []     = pure []
 lits (t:ts) = pure (:) <*> lit t <*> lits ts
 
-type Type = String
-data Pattern = PVar String | PType Type | PCons [Pattern] | POr Pattern Pattern deriving (Eq, Show)
-type DTypes = [(String, [Type])]
-type PMat   = [[Pattern]]
-type TypeToMatch = (Type, [Type])
+data Type
+  = TCon String
+  | TApp Type Type
+  deriving (Eq, Show)
 
-data Match = MDTypes DTypes | MPMat PMat | MTypeToMatch TypeToMatch deriving (Eq, Show)
+data Pattern = PVar String
+            | PCon String [Pattern]
+            | POr Pattern Pattern
+            deriving (Eq, Show)
+
+type DTypes = [(String, [(String, [Type])])]
+type PMat   = [[Pattern]]
+
+type Match = (DTypes, PMat, Type)
 
 string :: Parser Char String
 string = lit '"' *> many0 (satisfy (/= '"')) <* lit '"'
 
+--dtypes :: Parser Char DTypes
+--dtypes = many1 dtype where
+--    dtype = (,) <$> lits "data" *> ws *> string <*> lits "where" *> ws *> dTypeDefs <* ws
+
+-- def tuple: (,,) :: a -> b -> c -> (a, b, c)
+-- so (,,) <$> a <*> b <*> c creates(,,) :: a -> b -> c -> (a, b, c)
+
 dtypes :: Parser Char DTypes
-dtypes = many1 dtype where  -- this still needs to be made into one list
-    dtype = toTuple <$ lits "data" *> ws *> string <* lits "where" *> ws *> dTypeDefs *> ws
-        where toTuple name defs = (name, defs) -- this whole thing probably doesn't work
+dtypes = undefined
+
+pmat :: Parser Char PMat
+pmat = undefined
+
+ttype :: Parser Char Type
+ttype = undefined
 
 match :: Parser Char Match
-match = MDTypes <$> dtypes
-    <|> MPMat   <$> pmat
-    <|> MTypeToMatch <$> typetomatch
+match =
+  (,,)
+    <$> dtypes
+    <*> pmat
+    <*> ttype
 
 match' :: Parser Char Match
 match' = ws *> match <* ws
@@ -120,24 +150,11 @@ digitsToInt ds = sum $ zipWith (*) ds $ map (10^) $ reverse [0..length ds-1]
 nat :: Parser Char Int
 nat = fmap digitsToInt (many1 pDigit)
 
-expr1 :: Parser Char Expr1
-expr1 = enat <|> eadd where
-  enat = do
-    n <- nat
-    return $ ENat n
-  eadd = do
-    lit '('
-    e1 <- expr1
-    lit '+'
-    e2 <- expr1
-    lit ')'
-    return $ EAdd e1 e2
-
 expr1' :: Parser Char Expr1
 expr1' = ENat <$> nat
-     <|> EAdd <$ lit '(' <*> expr1 <* lit '+' <*> expr1 <* lit ')'
+     <|> EAdd <$ lit '(' <*> expr1' <* lit '+' <*> expr1' <* lit ')'
 
-example = runParser expr1 "(2 + (3 + 5))"
+example = runParser expr1' "(2 + (3 + 5))"
 
 ws :: Parser Char [Char]
 ws = many0 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
@@ -158,9 +175,6 @@ data JSON = JInt Int
           | JList [JSON] 
           | JObject [(String, JSON)]
           deriving (Show, Eq)
-
-string :: Parser Char String
-string = lit '"' *> many0 (satisfy (/= '"')) <* lit '"'
 
 commaSep0 :: Parser Char a -> Parser Char [a]
 commaSep0 p = p `sepBy0` (lit ',' <* ws)
