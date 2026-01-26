@@ -5,16 +5,16 @@ data Unit where
 
 data Nat where
   zero : Nat
-  suc  : Nat → Nat
+  suc  : Nat -> Nat
 
 data List where
   nil  : List
-  cons : Nat → List → List
+  cons : Nat -> List -> List
 
 data OneOfThose where
-  nat  : Nat → Nat → List → OneOfThose
-  list : List → OneOfThose
-  unit : Unit → OneOfThose
+  nat  : Nat -> Nat -> List -> OneOfThose
+  list : List -> OneOfThose
+  unit : Unit -> OneOfThose
 
 
 === pattern matrix ===

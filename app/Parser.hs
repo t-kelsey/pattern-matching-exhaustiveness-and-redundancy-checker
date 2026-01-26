@@ -95,39 +95,58 @@ lits :: (Eq t) => [t] -> Parser t [t]
 lits []     = pure []
 lits (t:ts) = pure (:) <*> lit t <*> lits ts
 
+string :: Parser Char String
+string = lit '"' *> many0 (satisfy (/= '"')) <* lit '"'
+
+-- A structure for types, e.g.: "OneOfThose Nat"
 data Type
   = TCon String
   | TApp Type Type
   deriving (Eq, Show)
 
+-- A type for our data type definitions, e.g.: 
+-- data Unit where
+--    tt : Unit
+type DTypes = [(String, [(String, [Type])])]
+
+-- A structure for each pattern in the matrix, e.g.: "(nat x zero y)"
 data Pattern = PVar String
             | PCon String [Pattern]
             | POr Pattern Pattern
             deriving (Eq, Show)
 
-type DTypes = [(String, [(String, [Type])])]
+-- A type for our pattern matrices
 type PMat   = [[Pattern]]
 
+-- A type for the entire structure that should be parsed
 type Match = (DTypes, PMat, Type)
 
-string :: Parser Char String
-string = lit '"' *> many0 (satisfy (/= '"')) <* lit '"'
 
---dtypes :: Parser Char DTypes
---dtypes = many1 dtype where
---    dtype = (,) <$> lits "data" *> ws *> string <*> lits "where" *> ws *> dTypeDefs <* ws
+-- MATCH PARSER
 
--- def tuple: (,,) :: a -> b -> c -> (a, b, c)
--- so (,,) <$> a <*> b <*> c creates(,,) :: a -> b -> c -> (a, b, c)
+-- Parses a type, along with any applications already applied, e.g.: "OneOfThose Nat", into a structure
+ttype :: Parser Char Type
+ttype = TCon <$> string
+    <|> TApp <$> ttype <* ws *> ttype
 
+-- Parses "a -> b -> c ..." into a list of types
+dtypefunctiondecs :: Parser Char [Type]
+dtypefunctiondecs = (:[]) <$> ttype
+                <|> (:) <$> ttype <* lits "->" <*> dtypefunctiondecs
+
+-- Parses any amount of "f : a -> b -> c ..." type signatures into a list 
+dtypefunctions :: Parser Char [(String, [Type])]
+dtypefunctions = many1 dtypefunction where
+  dtypefunction = (,) <$> string <* lit ':' <*> dtypefunctiondecs
+
+-- Parses any amount of data types and their function type signatures into a structure
 dtypes :: Parser Char DTypes
-dtypes = undefined
+dtypes = many1 dtype where
+  dtype = (,) <$ lits "data" <* ws <*> string <* lits "where" <* ws <*> dtypefunctions <* ws
 
+-- Parses a matrix of patterns [[Pattern]] of size n*m, where all inner lists have consistent size
 pmat :: Parser Char PMat
 pmat = undefined
-
-ttype :: Parser Char Type
-ttype = undefined
 
 match :: Parser Char Match
 match =
