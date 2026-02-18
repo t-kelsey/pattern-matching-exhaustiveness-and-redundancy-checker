@@ -107,7 +107,8 @@ data Type
 -- A type for our data type definitions, e.g.: 
 -- data Unit where
 --    tt : Unit
-type DTypes = [(String, [(String, [Type])])]
+type DType = (String, [(String, [Type])])
+type DTypes = [DType]
 
 -- A structure for each pattern in the matrix, e.g.: "(nat x zero y)"
 data Pattern = PVar String
@@ -158,7 +159,27 @@ match =
 match' :: Parser Char Match
 match' = ws *> match <* ws
 
+prettyMatch :: Match -> String
+prettyMatch (x, y, z) = prettyDTypes x ++ prettyPMat y ++ prettyType z
+
+prettyDTypes :: DTypes -> String
+prettyDTypes xs = intercalate "\n" (map prettyDType xs)
+
+prettyDType :: DType -> String
+prettyDType xs = first xs ++ "\n  " ++ intercalate "\n" (map (\x -> first x ++ " : " ++ intercalate " -> " (map prettyType (second x))) (second xs))
+  where first (x, _) = x
+        second (_, x) = x
+  
+
 data Expr1 = ENat Int | EAdd Expr1 Expr1 deriving (Eq, Show)
+
+prettyPMat :: PMat -> String
+prettyPMat = undefined
+
+prettyType :: Type -> String
+prettyType x = " example type here "
+
+
 
 pDigit :: Parser Char Int
 pDigit = msatisfy (\c -> readMaybe [c])

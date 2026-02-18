@@ -61,7 +61,7 @@ executable pattern-matching-exhaustiveness-and-redundancy-checker
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules:    Parser
+    other-modules:    Parser, Algo
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -78,18 +78,19 @@ executable pattern-matching-exhaustiveness-and-redundancy-checker
 test-Suite test
     import:           warnings
 
-    type:       exitcode-stdio-1.0
+    type:           exitcode-stdio-1.0
 
-    main-is:    Test.hs
+    main-is:        Test.hs
     -- Modules included in this executable, other than Main.
-    other-modules:    Parser, Main
+
+    other-modules:    Parser, Algo
 
     build-depends:    base ^>=4.18.3.0,
                       hspec ^>=2.11.16,
                       QuickCheck ^>=2.16.0.0
 
     -- Directories containing source files.
-    hs-source-dirs:   app, test
+    hs-source-dirs:   test, app
 
     -- Base language which the package is written in.
     default-language: Haskell2010

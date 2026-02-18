@@ -25,7 +25,8 @@ A reusable library to check the correctness and exhaustiveness of nested pattern
   - reader
   - parser
   - main
-  - target
+
+- test
   - test
 
 - resources
@@ -36,9 +37,9 @@ A reusable library to check the correctness and exhaustiveness of nested pattern
 
 
 ##### Workflow
-
-input -> reader -> parser -> main -> target
+`cabal run`
+input -> parser -> main
 
 ##### Test workflow
-
-test_input -> reader -> parser -> test -> main -> target
+`cabal test`
+test_input -> parser -> test
