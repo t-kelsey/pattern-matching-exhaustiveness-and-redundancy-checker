@@ -16,7 +16,6 @@ data OneOfThose where
   list : List -> OneOfThose
   unit : Unit -> OneOfThose
 
-
 === pattern matrix ===
 (nat x zero y) | (nat zero zero nil)  x
       (list (cons zero nil))          x

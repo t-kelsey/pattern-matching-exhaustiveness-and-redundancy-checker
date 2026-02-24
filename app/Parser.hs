@@ -169,7 +169,6 @@ prettyDType :: DType -> String
 prettyDType xs = first xs ++ "\n  " ++ intercalate "\n" (map (\x -> first x ++ " : " ++ intercalate " -> " (map prettyType (second x))) (second xs))
   where first (x, _) = x
         second (_, x) = x
-  
 
 data Expr1 = ENat Int | EAdd Expr1 Expr1 deriving (Eq, Show)
 
