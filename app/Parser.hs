@@ -10,7 +10,7 @@ import GHC.IO.Handle.FD (stdout)
 import Data.List (intercalate)
 import Data.Foldable (forM_)
 import Data.List (delete)
-import Data.Char (isAlphaNum)
+import Data.Char (isUpper, isAlphaNum)
 
 newtype Parser t r = Parser { runParser :: [t] -> [(r, [t])] }
 
@@ -115,13 +115,14 @@ type DType = (String, [(String, [Type])])
 type DTypes = [DType]
 
 -- A structure for each pattern in the matrix, e.g.: "(nat x zero y)"
-data Pattern = PVar String
-            | PCon String [Pattern]
+data Pattern = PCon String
+            | PVar String
+            | PApp Pattern [Pattern]
             | POr Pattern Pattern
             deriving (Eq, Show)
 
 -- A type for our pattern matrices
-type PMat   = [[Pattern]]
+type PMat  = [[Pattern]]
 
 -- A type for the entire structure that should be parsed
 type Match = (DTypes, PMat, Type)
@@ -137,22 +138,45 @@ ttype :: Parser Char Type
 ttype = foldl1 TApp <$> many1 (ttypeatom <* ws)
 
 -- Parses "a -> b -> c ..." into a list of types
-dtypefunctiondecs :: Parser Char [Type] 
-dtypefunctiondecs = sepBy1 ttype (ws *> lits "->" <* ws)
+typeSignature :: Parser Char [Type] 
+typeSignature = sepBy1 ttype (ws *> lits "->" <* ws)
 
 -- Parses any amount of "f : a -> b -> c ..." type signatures into a list 
-dtypefunctions :: Parser Char [(String, [Type])]
-dtypefunctions = many1 dtypefunction where
-  dtypefunction = (,) <$> string <* ws <* lit ':' <* ws <*> dtypefunctiondecs
+constrDeclarations :: Parser Char [(String, [Type])]
+constrDeclarations = many1 constrDeclaration where
+  constrDeclaration = (,) <$> string <* ws <* lit ':' <* ws <*> typeSignature
 
--- Parses any amount of data types and their function type signatures into a structure
+-- Parses any amount of data types and their constructor declarations into a structure
 dtypes :: Parser Char DTypes
 dtypes = many1 dtype where
-  dtype = (,) <$ lits "data" <* ws <*> string <* lits "where" <* ws <*> dtypefunctions <* ws
+  dtype = (,) <$> (lits "data" *> ws *> string) <* ws <* lits "where" <* ws <*> constrDeclarations <* ws
 
--- Parses a matrix of patterns [[Pattern]] of size n*m, where all inner lists have consistent size
+-- Parses a matrix of patterns [[Pattern]]. We don't need to check if it's of size n*m, as rules that are not the right size won't match
+-- Here the design decision is that single-length alphastrings are parsed as vars ("x"), while longer strings are cons ("zero")
 pmat :: Parser Char PMat
-pmat = undefined
+pmat = many1 (pMatchRule <* ws) where
+  pMatchRule = many1 (p <* ws)
+
+-- Manual recursion as string is not greedy enough somehow
+pString :: Parser Char String
+pString = do
+  c  <- satisfy isAlphaNum
+  cs <- (pString <|> pure "")
+  pure (c:cs)
+
+pAtom :: Parser Char Pattern
+pAtom = (lit '(' *> p <* lit ')') <|> pName where
+  pName = do
+    name <- pString
+    pure $ case name of
+      (x:_) | isUpper x -> PCon name
+      _                 -> PVar name
+
+p :: Parser Char Pattern
+p = pApp <|> pOr <|> pAtom
+  where
+    pApp = PApp <$> pAtom <* ws <*> many1 (pAtom <* ws)
+    pOr = POr <$> pAtom <* ws <* lit '|' <* ws <*> pAtom
 
 match :: Parser Char Match
 match =
@@ -171,17 +195,24 @@ prettyDTypes :: DTypes -> String
 prettyDTypes xs = intercalate "\n" (map prettyDType xs)
 
 prettyDType :: DType -> String
-prettyDType xs = first xs ++ "\n  " ++ intercalate "\n" (map (\x -> first x ++ " : " ++ intercalate " -> " (map prettyType (second x))) (second xs))
+prettyDType xs = first xs ++ "\n  " ++ intercalate "\n  " (map (\x -> first x ++ " : " ++ intercalate " -> " (map prettyType (second x))) (second xs))
   where first (x, _) = x
         second (_, x) = x
 
 data Expr1 = ENat Int | EAdd Expr1 Expr1 deriving (Eq, Show)
 
 prettyPMat :: PMat -> String
-prettyPMat = undefined
+prettyPMat xs = intercalate "\n" $ (intercalate " ") <$> ((fmap . fmap) prettyP xs)
+
+prettyP :: Pattern -> String
+prettyP (PVar x) = x
+prettyP (PCon x) = x
+prettyP (POr x y) = prettyP x ++ " | " ++ prettyP y
+prettyP (PApp x xs) = "(" ++ intercalate " " (prettyP x : (prettyP <$> xs)) ++ ")"
 
 prettyType :: Type -> String
-prettyType x = " example type here "
+prettyType (TCon x) = x
+prettyType (TApp x y) = prettyType x ++ prettyType y
 
 pDigit :: Parser Char Int
 pDigit = msatisfy (\c -> readMaybe [c])

@@ -1,1 +1,3 @@
-oneofthose : OneOfThose -> Unit
+(nat x zero y) | (nat zero zero nil)  x
+      (list (cons zero nil))          x
+            (unit x)                  x
