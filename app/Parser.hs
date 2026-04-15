@@ -10,6 +10,7 @@ import GHC.IO.Handle.FD (stdout)
 import Data.List (intercalate)
 import Data.Foldable (forM_)
 import Data.List (delete)
+import Data.Char (isAlphaNum)
 
 newtype Parser t r = Parser { runParser :: [t] -> [(r, [t])] }
 
@@ -70,7 +71,7 @@ instance Monad (Parser t) where
     Parser $ \ts -> px ts >>= \(x, ts') -> runParser (f x) ts'
   
 many0 :: Parser t x -> Parser t [x]
-many0 p = pure [] <|> many1 p 
+many0 p = pure [] <|> many1 p
 
 many1 :: Parser t x -> Parser t [x]
 many1 p = pure (:) <*> p <*> many0 p
@@ -95,8 +96,11 @@ lits :: (Eq t) => [t] -> Parser t [t]
 lits []     = pure []
 lits (t:ts) = pure (:) <*> lit t <*> lits ts
 
+--string :: Parser Char String
+--string = lit '"' *> many0 (satisfy (/= '"')) <* lit '"'
+
 string :: Parser Char String
-string = lit '"' *> many0 (satisfy (/= '"')) <* lit '"'
+string = many1 (satisfy isAlphaNum)
 
 -- A structure for types, e.g.: "OneOfThose Nat"
 data Type
@@ -126,19 +130,20 @@ type Match = (DTypes, PMat, Type)
 -- MATCH PARSER
 
 -- Parses a type, along with any applications already applied, e.g.: "OneOfThose Nat", into a structure
+ttypeatom :: Parser Char Type
+ttypeatom = TCon <$> string
+
 ttype :: Parser Char Type
-ttype = TCon <$> string
-    <|> TApp <$> ttype <* ws *> ttype
+ttype = foldl1 TApp <$> many1 (ttypeatom <* ws)
 
 -- Parses "a -> b -> c ..." into a list of types
-dtypefunctiondecs :: Parser Char [Type]
-dtypefunctiondecs = (:[]) <$> ttype
-                <|> (:) <$> ttype <* lits "->" <*> dtypefunctiondecs
+dtypefunctiondecs :: Parser Char [Type] 
+dtypefunctiondecs = sepBy1 ttype (ws *> lits "->" <* ws)
 
 -- Parses any amount of "f : a -> b -> c ..." type signatures into a list 
 dtypefunctions :: Parser Char [(String, [Type])]
 dtypefunctions = many1 dtypefunction where
-  dtypefunction = (,) <$> string <* lit ':' <*> dtypefunctiondecs
+  dtypefunction = (,) <$> string <* ws <* lit ':' <* ws <*> dtypefunctiondecs
 
 -- Parses any amount of data types and their function type signatures into a structure
 dtypes :: Parser Char DTypes
@@ -177,8 +182,6 @@ prettyPMat = undefined
 
 prettyType :: Type -> String
 prettyType x = " example type here "
-
-
 
 pDigit :: Parser Char Int
 pDigit = msatisfy (\c -> readMaybe [c])
