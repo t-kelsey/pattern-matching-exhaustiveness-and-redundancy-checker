@@ -155,9 +155,9 @@ dtypes = many1 dtype where
 -- Here the design decision is that single-length alphastrings are parsed as vars ("x"), while longer strings are cons ("zero")
 pmat :: Parser Char PMat
 pmat = many1 (pMatchRule <* ws) where
-  pMatchRule = many1 (p <* ws)
+  pMatchRule = many1 (p <* ws')
 
--- Manual recursion as string is not greedy enough somehow
+-- Manual recursion as string is not greedy enough somehow for the pattern
 pString :: Parser Char String
 pString = do
   c  <- satisfy isAlphaNum
@@ -165,34 +165,40 @@ pString = do
   pure (c:cs)
 
 pAtom :: Parser Char Pattern
-pAtom = (lit '(' *> p <* lit ')') <|> pName where
-  pName = do
-    name <- pString
-    pure $ case name of
-      (x:_) | isUpper x -> PCon name
-      _                 -> PVar name
-
-p :: Parser Char Pattern
-p = pApp <|> pOr <|> pAtom
+pAtom = pName <|> pApp
   where
-    pApp = PApp <$> pAtom <* ws <*> many1 (pAtom <* ws)
-    pOr = POr <$> pAtom <* ws <* lit '|' <* ws <*> pAtom
+    pApp = PApp <$ lit '(' <* ws' <*> pName <* ws' <*> many0 (p <* ws') <* lit ')'
+    pName = do
+      name <- pString
+      pure $ case name of
+        (x:_) | isUpper x -> PCon name
+        _                 -> PVar name
+
+
+-- Match each individual pattern in the pattern matrix
+p :: Parser Char Pattern
+p = pAtom >>= \left ->
+        (ws' *> lit '|' *> ws' *> pAtom >>= \right -> 
+            pure (POr left right))
+        <|> pure left
 
 match :: Parser Char Match
-match =
+match =  
   (,,)
-    <$> dtypes
-    <*> pmat
-    <*> ttype
+    <$> (ws *> lits "=== data types ===" *> ws *> dtypes)
+    <*> (ws *> lits "=== pattern matrix ===" *> ws *> pmat)
+    <*> (ws *> lits "=== type ===" *> ws *> ttype)
 
 match' :: Parser Char Match
 match' = ws *> match <* ws
 
+-- pretty[datatype] is for displaying the parsed data type (e.g. debugging)
+
 prettyMatch :: Match -> String
-prettyMatch (x, y, z) = prettyDTypes x ++ prettyPMat y ++ prettyType z
+prettyMatch (x, y, z) = "\n=== data types ===\n" ++ prettyDTypes x ++ "\n\n=== pattern matrix ===\n" ++ prettyPMat y ++ "\n\n=== type ===\n" ++ prettyType z
 
 prettyDTypes :: DTypes -> String
-prettyDTypes xs = intercalate "\n" (map prettyDType xs)
+prettyDTypes xs = intercalate "\n\n" $ prettyDType <$> xs
 
 prettyDType :: DType -> String
 prettyDType xs = first xs ++ "\n  " ++ intercalate "\n  " (map (\x -> first x ++ " : " ++ intercalate " -> " (map prettyType (second x))) (second xs))
@@ -202,7 +208,7 @@ prettyDType xs = first xs ++ "\n  " ++ intercalate "\n  " (map (\x -> first x ++
 data Expr1 = ENat Int | EAdd Expr1 Expr1 deriving (Eq, Show)
 
 prettyPMat :: PMat -> String
-prettyPMat xs = intercalate "\n" $ (intercalate " ") <$> ((fmap . fmap) prettyP xs)
+prettyPMat xs = concat $ (fmap $ intercalate "") $ ((fmap . fmap) prettyP xs)
 
 prettyP :: Pattern -> String
 prettyP (PVar x) = x
@@ -231,6 +237,9 @@ example = runParser expr1' "(2 + (3 + 5))"
 
 ws :: Parser Char [Char]
 ws = many0 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
+
+ws' :: Parser Char [Char]
+ws' = many0 (lit ' ')
 
 int :: Parser Char Int
 int = toInt <$> poptional (lit '-') <*> nat where
