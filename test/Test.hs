@@ -22,8 +22,8 @@ main = hspec $ do
                   []    -> error "\n\nParse failed.\n"
                   (x:_) -> (prettyPMat $ (\(_,x,_) -> x) x) `shouldBe` "(nat x zero y) | (nat zero zero nil) x\n(list (cons zero nil)) x\n(unit x) x"
 
-            it "returns the first element of an *arbitrary* list" $
-               property $ \x xs -> head (x:xs) == (x :: Int)
-
-            it "throws an exception if used with an empty list" $ do
-               evaluate (head []) `shouldThrow` anyException
+            it "Parser: type to be matched is correctly parsed" $ do
+               contents <- readFile "resources/test.txt"
+               case runParserEnd match' contents of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (prettyType $ (\(_,_,x) -> x) x) `shouldBe` "OneOfThose Nat"

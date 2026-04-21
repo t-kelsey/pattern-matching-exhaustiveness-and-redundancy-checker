@@ -104,7 +104,7 @@ string = many1 (satisfy isAlphaNum)
 
 -- A structure for types, e.g.: "OneOfThose Nat"
 data Type
-  = TCon String
+  = TAtom String
   | TApp Type Type
   deriving (Eq, Show)
 
@@ -131,11 +131,8 @@ type Match = (DTypes, PMat, Type)
 -- MATCH PARSER
 
 -- Parses a type, along with any applications already applied, e.g.: "OneOfThose Nat", into a structure
-ttypeatom :: Parser Char Type
-ttypeatom = TCon <$> string
-
 ttype :: Parser Char Type
-ttype = foldl1 TApp <$> many1 (ttypeatom <* ws)
+ttype = foldl1 TApp <$> sepBy1 (TAtom <$> string) ws1
 
 -- Parses "a -> b -> c ..." into a list of types
 typeSignature :: Parser Char [Type] 
@@ -154,8 +151,7 @@ dtypes = many1 dtype where
 -- Parses a matrix of patterns [[Pattern]]. We don't need to check if it's of size n*m, as rules that are not the right size won't match
 -- Here the design decision is that single-length alphastrings are parsed as vars ("x"), while longer strings are cons ("zero")
 pmat :: Parser Char PMat
-pmat = many1 (pMatchRule <* ws) where
-  pMatchRule = many1 (p <* ws')
+pmat = sepBy1 (many1 (p <* ws')) (many1 (lit '\n' <* ws))
 
 -- Manual recursion as string is not greedy enough somehow for the pattern
 pString :: Parser Char String
@@ -208,7 +204,19 @@ prettyDType xs = first xs ++ "\n  " ++ intercalate "\n  " (map (\x -> first x ++
 data Expr1 = ENat Int | EAdd Expr1 Expr1 deriving (Eq, Show)
 
 prettyPMat :: PMat -> String
-prettyPMat xs = concat $ (fmap $ intercalate "") $ ((fmap . fmap) prettyP xs)
+prettyPMat xs = (intercalate "\n") $ (intercalate " ") <$> ((fmap . fmap) prettyP xs)
+
+p1 :: [[Pattern]] -> String
+p1 (x:[]) = prettyPRow x
+p1 (x:xs) = (prettyPRow x) ++ "," ++ (p1 xs)
+
+prettyPRow :: [Pattern] -> String
+prettyPRow xs = "[" ++ p2 xs ++ "]"
+
+p2 :: [Pattern] -> String
+p2 (x:[]) = prettyP x
+p2 (x:xs) = (prettyP x) ++ "," ++ (p2 xs)
+
 
 prettyP :: Pattern -> String
 prettyP (PVar x) = x
@@ -217,8 +225,8 @@ prettyP (POr x y) = prettyP x ++ " | " ++ prettyP y
 prettyP (PApp x xs) = "(" ++ intercalate " " (prettyP x : (prettyP <$> xs)) ++ ")"
 
 prettyType :: Type -> String
-prettyType (TCon x) = x
-prettyType (TApp x y) = prettyType x ++ prettyType y
+prettyType (TAtom x) = x
+prettyType (TApp x y) = prettyType x ++ " " ++ prettyType y
 
 pDigit :: Parser Char Int
 pDigit = msatisfy (\c -> readMaybe [c])
@@ -237,6 +245,9 @@ example = runParser expr1' "(2 + (3 + 5))"
 
 ws :: Parser Char [Char]
 ws = many0 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
+
+ws1 :: Parser Char [Char]
+ws1 = many1 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
 
 ws' :: Parser Char [Char]
 ws' = many0 (lit ' ')
