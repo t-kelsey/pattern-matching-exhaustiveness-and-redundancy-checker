@@ -3,20 +3,14 @@
 
 module Parser where
 import Control.Applicative
-import Text.Read (readMaybe)
-import Data.Char (isAlpha)
-import GHC.IO.Handle (hFlush)
-import GHC.IO.Handle.FD (stdout)
 import Data.List (intercalate)
-import Data.Foldable (forM_)
-import Data.List (delete)
 import Data.Char (isUpper, isAlphaNum)
 
 newtype Parser t r = Parser { runParser :: [t] -> [(r, [t])] }
 
 -- recognizes the empty language
 pempty :: Parser t r
-pempty = Parser $ \ts -> []
+pempty = Parser $ \_ -> []
 
 -- recognizes the language with just the empty word
 succeed :: r -> Parser t r
@@ -24,15 +18,9 @@ succeed r = Parser $ \ts -> [(r, ts)]
 
 -- `satisfy p` recognizes the language { a | p a }
 satisfy :: (t -> Bool) -> Parser t t
-satisfy p = Parser $ \ts -> case ts of
-  (t : ts') | p t -> [(t, ts')]
+satisfy par = Parser $ \ts -> case ts of
+  (t : ts') | par t -> [(t, ts')]
   _               -> []
-
--- variation of satisfy
-msatisfy :: (t -> Maybe r) -> Parser t r
-msatisfy m = Parser $ \ts -> case ts of
-  (t: ts) | Just r <- m t -> [(r, ts)]
-  _                       -> []
 
 -- `lit t` recognizes { t }
 lit :: Eq t => t -> Parser t t
@@ -48,12 +36,12 @@ pseq (Parser p1) (Parser p2) = Parser $ \ts ->
   [ (f a, ts2) | (f, ts1) <- p1 ts, (a, ts2) <- p2 ts1]
 
 pmap :: (s -> r) -> (Parser t s -> Parser t r)
-pmap f (Parser p) = Parser $ \ts -> [ (f s, ts') | (s, ts') <- p ts ]
+pmap f (Parser par) = Parser $ \ts -> [ (f s, ts') | (s, ts') <- par ts ]
 
 -- Solution
 
 runParserEnd :: Parser t a -> [t] -> [a]
-runParserEnd p ts = [ x | (x, ts') <- runParser p ts, null ts' ]
+runParserEnd par ts = [ x | (x, ts') <- runParser par ts, null ts' ]
 
 instance Functor (Parser t) where
   fmap = pmap
@@ -71,48 +59,56 @@ instance Monad (Parser t) where
     Parser $ \ts -> px ts >>= \(x, ts') -> runParser (f x) ts'
   
 many0 :: Parser t x -> Parser t [x]
-many0 p = pure [] <|> many1 p
+many0 par = pure [] <|> many1 par
 
 many1 :: Parser t x -> Parser t [x]
-many1 p = pure (:) <*> p <*> many0 p
+many1 par = pure (:) <*> par <*> many0 par
 
 poptional :: Parser t r -> Parser t (Maybe r)
-poptional p = Just <$> p <|> pure Nothing
+poptional par = Just <$> par <|> pure Nothing
 
 sepBy1 :: Parser t a -> Parser t b -> Parser t [a]
-sepBy1 p sep = (:[]) <$> p 
-           <|> (:) <$> p <* sep <*> sepBy0 p sep
+sepBy1 par sep = (:[]) <$> par 
+           <|> (:) <$> par <* sep <*> sepBy0 par sep
 
 sepBy0 :: Parser t a -> Parser t b -> Parser t [a]
-sepBy0 p sep = pure [] <|> sepBy1 p sep
-
--- Note: `many0`, `many1`, `poptional` are actually automatically implemented
--- as `some`, `many`, and `optional` as this construction works for arbitrary
--- Applicatives with an Alternative instance.
--- See documentation of Alternative: 
---   https://hackage.haskell.org/package/base-4.20.0.1/docs/Control-Applicative.html#t:Alternative
+sepBy0 par sep = pure [] <|> sepBy1 par sep
 
 lits :: (Eq t) => [t] -> Parser t [t]
 lits []     = pure []
 lits (t:ts) = pure (:) <*> lit t <*> lits ts
 
---string :: Parser Char String
---string = lit '"' *> many0 (satisfy (/= '"')) <* lit '"'
-
 string :: Parser Char String
 string = many1 (satisfy isAlphaNum)
 
--- A structure for types, e.g.: "OneOfThose Nat"
-data Type
-  = TAtom String
-  | TApp Type Type
-  deriving (Eq, Show)
+-- zero or more whitespace chars
+ws :: Parser Char [Char]
+ws = many0 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
+
+-- one or more whitespace chars
+ws1 :: Parser Char [Char]
+ws1 = many1 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
+
+-- zero or more non-new-line chars
+ws' :: Parser Char [Char]
+ws' = many0 (lit ' ' <|> lit '\t')
+
+
+-- CODE FOR MATCH PARSER
+
+
+-- A type for the entire structure that is be parsed
+type Match = (DTypes, PMat, Type)
+
 
 -- A type for our data type definitions, e.g.: 
 -- data Unit where
 --    tt : Unit
 type DType = (String, [(String, [Type])])
 type DTypes = [DType]
+
+-- A type for our pattern matrices
+type PMat  = [[Pattern]]
 
 -- A structure for each pattern in the matrix, e.g.: "(nat x zero y)"
 data Pattern = PCon String
@@ -121,32 +117,27 @@ data Pattern = PCon String
             | POr Pattern Pattern
             deriving (Eq, Show)
 
--- A type for our pattern matrices
-type PMat  = [[Pattern]]
+-- A structure for types, e.g.: "OneOfThose Nat"
+data Type
+  = TAtom String
+  | TApp Type Type
+  deriving (Eq, Show)
 
--- A type for the entire structure that should be parsed
-type Match = (DTypes, PMat, Type)
 
 
--- MATCH PARSER
-
--- Parses a type, along with any applications already applied, e.g.: "OneOfThose Nat", into a structure
-ttype :: Parser Char Type
-ttype = foldl1 TApp <$> sepBy1 (TAtom <$> string) ws1
-
--- Parses "a -> b -> c ..." into a list of types
-typeSignature :: Parser Char [Type] 
-typeSignature = sepBy1 ttype (ws *> lits "->" <* ws)
+-- Parses any amount of data types and their constructor declarations into a structure
+dtypes :: Parser Char DTypes
+dtypes = many1 dtype where
+  dtype = (,) <$> (lits "data" *> ws *> string) <* ws <* lits "where" <* ws <*> constrDeclarations <* ws
 
 -- Parses any amount of "f : a -> b -> c ..." type signatures into a list 
 constrDeclarations :: Parser Char [(String, [Type])]
 constrDeclarations = many1 constrDeclaration where
   constrDeclaration = (,) <$> string <* ws <* lit ':' <* ws <*> typeSignature
 
--- Parses any amount of data types and their constructor declarations into a structure
-dtypes :: Parser Char DTypes
-dtypes = many1 dtype where
-  dtype = (,) <$> (lits "data" *> ws *> string) <* ws <* lits "where" <* ws <*> constrDeclarations <* ws
+-- Parses "a -> b -> c ..." into a list of types
+typeSignature :: Parser Char [Type] 
+typeSignature = sepBy1 ttype (ws *> lits "->" <* ws)
 
 -- Parses a matrix of patterns [[Pattern]]. We don't need to check if it's of size n*m, as rules that are not the right size won't match
 -- Here the design decision is that single-length alphastrings are parsed as vars ("x"), while longer strings are cons ("zero")
@@ -178,6 +169,11 @@ p = pAtom >>= \left ->
             pure (POr left right))
         <|> pure left
 
+-- Parses a type, along with any applications already applied, e.g.: "OneOfThose Nat", into a structure
+ttype :: Parser Char Type
+ttype = foldl1 TApp <$> sepBy1 (TAtom <$> string) ws1
+
+-- Parse the entire match structure
 match :: Parser Char Match
 match =  
   (,,)
@@ -188,7 +184,9 @@ match =
 match' :: Parser Char Match
 match' = ws *> match <* ws
 
--- pretty[datatype] is for displaying the parsed data type (e.g. debugging)
+
+
+-- pretty[...] is for displaying the parsed data type for debugging and testing
 
 prettyMatch :: Match -> String
 prettyMatch (x, y, z) = "\n=== data types ===\n" ++ prettyDTypes x ++ "\n\n=== pattern matrix ===\n" ++ prettyPMat y ++ "\n\n=== type ===\n" ++ prettyType z
@@ -201,22 +199,8 @@ prettyDType xs = first xs ++ "\n  " ++ intercalate "\n  " (map (\x -> first x ++
   where first (x, _) = x
         second (_, x) = x
 
-data Expr1 = ENat Int | EAdd Expr1 Expr1 deriving (Eq, Show)
-
 prettyPMat :: PMat -> String
 prettyPMat xs = (intercalate "\n") $ (intercalate " ") <$> ((fmap . fmap) prettyP xs)
-
-p1 :: [[Pattern]] -> String
-p1 (x:[]) = prettyPRow x
-p1 (x:xs) = (prettyPRow x) ++ "," ++ (p1 xs)
-
-prettyPRow :: [Pattern] -> String
-prettyPRow xs = "[" ++ p2 xs ++ "]"
-
-p2 :: [Pattern] -> String
-p2 (x:[]) = prettyP x
-p2 (x:xs) = (prettyP x) ++ "," ++ (p2 xs)
-
 
 prettyP :: Pattern -> String
 prettyP (PVar x) = x
@@ -227,115 +211,3 @@ prettyP (PApp x xs) = "(" ++ intercalate " " (prettyP x : (prettyP <$> xs)) ++ "
 prettyType :: Type -> String
 prettyType (TAtom x) = x
 prettyType (TApp x y) = prettyType x ++ " " ++ prettyType y
-
-pDigit :: Parser Char Int
-pDigit = msatisfy (\c -> readMaybe [c])
-
-digitsToInt :: [Int] -> Int
-digitsToInt ds = sum $ zipWith (*) ds $ map (10^) $ reverse [0..length ds-1]
-
-nat :: Parser Char Int
-nat = fmap digitsToInt (many1 pDigit)
-
-expr1' :: Parser Char Expr1
-expr1' = ENat <$> nat
-     <|> EAdd <$ lit '(' <*> expr1' <* lit '+' <*> expr1' <* lit ')'
-
-example = runParser expr1' "(2 + (3 + 5))"
-
-ws :: Parser Char [Char]
-ws = many0 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
-
-ws1 :: Parser Char [Char]
-ws1 = many1 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
-
-ws' :: Parser Char [Char]
-ws' = many0 (lit ' ')
-
-int :: Parser Char Int
-int = toInt <$> poptional (lit '-') <*> nat where
-  toInt Nothing  n = n
-  toInt (Just _) n = -n
-
-bool :: Parser Char Bool
-bool = True  <$ lits "true" 
-   <|> False <$ lits "false"
-
-data JSON = JInt Int
-          | JBool Bool
-          | JNull
-          | JString String
-          | JList [JSON] 
-          | JObject [(String, JSON)]
-          deriving (Show, Eq)
-
-commaSep0 :: Parser Char a -> Parser Char [a]
-commaSep0 p = p `sepBy0` (lit ',' <* ws)
-
-json :: Parser Char JSON
-json = JInt    <$> int
-   <|> JBool   <$> bool
-   <|> JNull   <$  lits "null"
-   <|> JString <$> string
-   <|> JList   <$  lit '[' <* ws <*> commaSep0 (json <* ws) <* lit ']'
-   <|> JObject <$  lit '{' <* ws <*> commaSep0 ((,) <$> string <* ws <* lit ':' <* ws <*> json) <* ws <* lit '}'
-
-jsonM :: Parser Char JSON
-jsonM = jInt <|> jBool <|> jNull <|> jString <|> jList <|> jObject where
-  jInt = do
-    i <- int
-    return $ JInt i
-  jBool = do
-    b <- bool
-    return $ JBool b
-  jNull = do
-    lits "null"
-    return JNull
-  jString = do
-    s <- string
-    return $ JString s
-  jList = do
-    lit '[' 
-    ws 
-    xs <- commaSep0 jsonM
-    ws 
-    lit ')'
-    return $ JList xs
-  jObject = do
-    lit '{' 
-    ws
-    items <- commaSep0 $ do
-      key <- string
-      ws
-      lit ':'
-      ws
-      val <- jsonM
-      return (key, val)
-    ws 
-    lit '}'
-    return $ JObject items
-
-json' :: Parser Char JSON
-json' = ws *> json <* ws
-
-prettyJson :: JSON -> String
-prettyJson (JInt i) = show i
-prettyJson (JBool True) = "true"
-prettyJson (JBool False) = "false"
-prettyJson (JString s) = "\"" ++ s ++ "\""
-prettyJson JNull = "null"
-prettyJson (JList xs) = "[" ++ intercalate ", " (map prettyJson xs) ++ "]"
-prettyJson (JObject items) = "{" ++ intercalate ", " (map prettyItem items) ++ "}" where
-  prettyItem (k, v) = "\"" ++ k ++ "\"" ++ ": " ++ prettyJson v
-
-exJson :: String
-exJson = unlines
-  [ "{"
-  , "  \"foo\": 42,"
-  , "  \"bar\": [1, 2, false, null],"
-  , "  \"baz\": \"boo\""
-  , "}"
-  ]
-
-exParseJson :: [JSON]
-exParseJson = runParserEnd json' exJson
