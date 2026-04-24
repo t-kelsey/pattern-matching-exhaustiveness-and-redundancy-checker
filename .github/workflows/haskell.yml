@@ -35,6 +35,8 @@ jobs:
 
     - name: Install dependencies
       run: |
+        sudo apt-get update
+        ghcup install ghc
         cabal update
         cabal build --only-dependencies --enable-tests --enable-benchmarks
     - name: Build
