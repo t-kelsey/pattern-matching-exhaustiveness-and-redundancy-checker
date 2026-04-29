@@ -4,7 +4,7 @@
 module Parser where
 import Control.Applicative
 import Data.List (intercalate)
-import Data.Char (isUpper, isAlphaNum)
+import Data.Char (isLower, isAlphaNum)
 
 newtype Parser t r = Parser { runParser :: [t] -> [(r, [t])] }
 
@@ -106,12 +106,12 @@ type DType = (String, [(String, [Type])])
 type DTypes = [DType]
 
 -- A type for our pattern matrices
-type Pvec = [Pattern]
+type PVec = [Pattern]
 type PMat  = [PVec]
 
 -- A structure for each pattern in the matrix, e.g.: "(nat x zero y)"
 data Pattern = PVar String
-            | PCon Pattern [Pattern]
+            | PCon String [Pattern]
             | POr Pattern Pattern
             deriving (Eq, Show)
 
@@ -141,6 +141,9 @@ typeSignature = sepBy1 ttype (ws *> lits "->" <* ws)
 pmat :: Parser Char PMat
 pmat = sepBy1 (many1 (p <* ws')) (many1 (lit '\n' <* ws))
 
+pvec :: Parser Char PVec
+pvec = many1 (p <* ws')
+
 -- Manual recursion as string is not greedy enough somehow for the pattern
 pString :: Parser Char String
 pString = do
@@ -151,12 +154,12 @@ pString = do
 pAtom :: Parser Char Pattern
 pAtom = pName <|> pCon
   where
-    pCon = PCon <$ lit '(' <* ws' <*> pName <* ws' <*> many0 (p <* ws') <* lit ')' -- case constructed pattern with one or more arity
+    pCon = PCon <$ lit '(' <* ws' <*> pString <* ws' <*> many0 (p <* ws') <* lit ')' -- case constructed pattern with one or more arity
     pName = do
       name <- pString
       pure $ case name of
-        (x:_) | isUpper x -> PCon name []  -- case constructed pattern with zero arity
-        _                 -> PVar name     -- case wildcard
+        (x:[]) | isLower x -> PVar name  -- case constructed pattern with zero arity
+        _                  -> PCon name []    -- case wildcard
 
 
 -- Match each individual pattern in the pattern matrix
@@ -196,14 +199,26 @@ prettyDType xs = first xs ++ "\n  " ++ intercalate "\n  " (map (\x -> first x ++
   where first (x, _) = x
         second (_, x) = x
 
+prettyPVec :: PVec -> String
+prettyPVec xs = intercalate " " (fmap prettyP xs)
+
 prettyPMat :: PMat -> String
 prettyPMat xs = (intercalate "\n") $ (intercalate " ") <$> ((fmap . fmap) prettyP xs)
 
 prettyP :: Pattern -> String
 prettyP (PVar x) = x
 prettyP (POr x y) = prettyP x ++ " | " ++ prettyP y
-prettyP (PCon x []) = prettyP x
-prettyP (PCon x xs) = "(" ++ intercalate " " (prettyP x : (prettyP <$> xs)) ++ ")"
+prettyP (PCon x []) = x
+prettyP (PCon x xs) = "(" ++ intercalate " " (x : (prettyP <$> xs)) ++ ")"
+
+debugPVec :: PVec -> String
+debugPVec xs = "[" ++ intercalate ", " (fmap debugP xs) ++ "]"
+
+debugP :: Pattern -> String
+debugP (PVar x) = "(PVar " ++ x ++ ")"
+debugP (POr x y) = "(POr " ++ debugP x ++ " | " ++ debugP y ++ ")"
+debugP (PCon x []) = "(PCon " ++ x ++ " [])"
+debugP (PCon x xs) = "(PCon " ++ x ++ " [" ++ intercalate ", " (debugP <$> xs) ++ "])"
 
 prettyType :: Type -> String
 prettyType (TAtom x) = x

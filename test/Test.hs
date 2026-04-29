@@ -9,7 +9,7 @@ import Control.Exception (evaluate)
 main :: IO ()
 main = hspec $ do  
         describe "Prelude.head" $ do
-            -- Parser tests: Test file should be correctly parsed
+            -- Parser tests: Test file sections should be correctly parsed
             it "Parser: data types are correctly parsed" $ do
                contents <- readFile "resources/test.txt"
                case runParserEnd match' contents of
@@ -27,3 +27,39 @@ main = hspec $ do
                case runParserEnd match' contents of
                   []    -> error "\n\nParse failed.\n"
                   (x:_) -> (prettyType $ (\(_,_,x) -> x) x) `shouldBe` "OneOfThose Nat"
+
+            -- Parser tests: Implicit and explicit data structures should be parsed correctly
+            it "Parser: Constructor pattern with > 0 arity is handled correctly" $ do
+               case runParserEnd p "(nat zero (succ zero) nil)" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (debugP x) `shouldBe` "(PCon nat [(PCon zero []), (PCon succ [(PCon zero [])]), (PCon nil [])])"
+            
+            it "Parser: Constructor pattern with = 0 arity is handled correctly" $ do
+               case runParserEnd p "(succ (succ zero))" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (debugP x) `shouldBe` "(PCon succ [(PCon succ [(PCon zero [])])])"
+
+            it "Parser: Variable pattern is correctly positively identified" $ do
+               case runParserEnd p "(succ (succ x))" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (debugP x) `shouldBe` "(PCon succ [(PCon succ [(PVar x)])])"
+
+            it "Parser: Variable pattern is correctly negatively identified" $ do
+               case runParserEnd p "(succ (succ X))" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (debugP x) `shouldBe` "(PCon succ [(PCon succ [(PCon X [])])])"
+
+            it "Parser: Or pattern is correctly identified" $ do
+               case runParserEnd p "zero | one" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (debugP x) `shouldBe` "(POr (PCon zero []) | (PCon one []))"
+
+            it "Parser: Or pattern implicit parenthesization is correct on rows" $ do
+               case runParserEnd pvec "zero | one zero" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (debugPVec x) `shouldBe` "[(POr (PCon zero []) | (PCon one [])), (PCon zero [])]"
+
+            it "Parser: Or pattern is correctly identified in constructor pattern" $ do
+               case runParserEnd p "(succ zero | one)" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (debugP x) `shouldBe` "(PCon succ [(POr (PCon zero []) | (PCon one []))])"
