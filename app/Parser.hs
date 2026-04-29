@@ -38,8 +38,6 @@ pseq (Parser p1) (Parser p2) = Parser $ \ts ->
 pmap :: (s -> r) -> (Parser t s -> Parser t r)
 pmap f (Parser par) = Parser $ \ts -> [ (f s, ts') | (s, ts') <- par ts ]
 
--- Solution
-
 runParserEnd :: Parser t a -> [t] -> [a]
 runParserEnd par ts = [ x | (x, ts') <- runParser par ts, null ts' ]
 
@@ -108,12 +106,12 @@ type DType = (String, [(String, [Type])])
 type DTypes = [DType]
 
 -- A type for our pattern matrices
-type PMat  = [[Pattern]]
+type Pvec = [Pattern]
+type PMat  = [PVec]
 
 -- A structure for each pattern in the matrix, e.g.: "(nat x zero y)"
-data Pattern = PCon String
-            | PVar String
-            | PApp Pattern [Pattern]
+data Pattern = PVar String
+            | PCon Pattern [Pattern]
             | POr Pattern Pattern
             deriving (Eq, Show)
 
@@ -122,7 +120,6 @@ data Type
   = TAtom String
   | TApp Type Type
   deriving (Eq, Show)
-
 
 
 -- Parses any amount of data types and their constructor declarations into a structure
@@ -140,7 +137,7 @@ typeSignature :: Parser Char [Type]
 typeSignature = sepBy1 ttype (ws *> lits "->" <* ws)
 
 -- Parses a matrix of patterns [[Pattern]]. We don't need to check if it's of size n*m, as rules that are not the right size won't match
--- Here the design decision is that single-length alphastrings are parsed as vars ("x"), while longer strings are cons ("zero")
+-- Here the design decision is that single-length lowercase alphastrings are parsed as vars ("x"), while other strings are cons ("zero")
 pmat :: Parser Char PMat
 pmat = sepBy1 (many1 (p <* ws')) (many1 (lit '\n' <* ws))
 
@@ -152,21 +149,21 @@ pString = do
   pure (c:cs)
 
 pAtom :: Parser Char Pattern
-pAtom = pName <|> pApp
+pAtom = pName <|> pCon
   where
-    pApp = PApp <$ lit '(' <* ws' <*> pName <* ws' <*> many0 (p <* ws') <* lit ')'
+    pCon = PCon <$ lit '(' <* ws' <*> pName <* ws' <*> many0 (p <* ws') <* lit ')' -- case constructed pattern with one or more arity
     pName = do
       name <- pString
       pure $ case name of
-        (x:_) | isUpper x -> PCon name
-        _                 -> PVar name
+        (x:_) | isUpper x -> PCon name []  -- case constructed pattern with zero arity
+        _                 -> PVar name     -- case wildcard
 
 
 -- Match each individual pattern in the pattern matrix
 p :: Parser Char Pattern
 p = pAtom >>= \left ->
         (ws' *> lit '|' *> ws' *> pAtom >>= \right -> 
-            pure (POr left right))
+            pure (POr left right)) -- case 'or'
         <|> pure left
 
 -- Parses a type, along with any applications already applied, e.g.: "OneOfThose Nat", into a structure
@@ -204,9 +201,9 @@ prettyPMat xs = (intercalate "\n") $ (intercalate " ") <$> ((fmap . fmap) pretty
 
 prettyP :: Pattern -> String
 prettyP (PVar x) = x
-prettyP (PCon x) = x
 prettyP (POr x y) = prettyP x ++ " | " ++ prettyP y
-prettyP (PApp x xs) = "(" ++ intercalate " " (prettyP x : (prettyP <$> xs)) ++ ")"
+prettyP (PCon x []) = prettyP x
+prettyP (PCon x xs) = "(" ++ intercalate " " (prettyP x : (prettyP <$> xs)) ++ ")"
 
 prettyType :: Type -> String
 prettyType (TAtom x) = x
