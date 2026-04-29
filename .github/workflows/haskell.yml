@@ -20,7 +20,7 @@ jobs:
       - name: Setup Haskell
         uses: haskell-actions/setup@v2
         with:
-          ghc-version: 'latest'
+          ghc-version: '9.6.5'
           cabal-version: 'latest'
 
       # 3. Cache dependencies to make future runs faster
