@@ -1,15 +1,19 @@
 module Main where
 
 import Parser
+import Algo
 import Test.Hspec 
 import Test.QuickCheck
 import Control.Exception (evaluate)
+import Data.List (intercalate)
 
 
 main :: IO ()
 main = hspec $ do  
         describe "Prelude.head" $ do
+
             -- Parser tests: Test file sections should be correctly parsed
+
             it "Parser: data types are correctly parsed" $ do
                contents <- readFile "resources/test.txt"
                case runParserEnd match' contents of
@@ -29,6 +33,8 @@ main = hspec $ do
                   (x:_) -> (prettyType $ (\(_,_,x) -> x) x) `shouldBe` "OneOfThose Nat"
 
             -- Parser tests: Implicit and explicit data structures should be parsed correctly
+            
+            -- Con tests
             it "Parser: Constructor pattern with > 0 arity is handled correctly" $ do
                case runParserEnd p "(nat zero (succ zero) nil)" of
                   []    -> error "\n\nParse failed.\n"
@@ -39,6 +45,7 @@ main = hspec $ do
                   []    -> error "\n\nParse failed.\n"
                   (x:_) -> (debugP x) `shouldBe` "(PCon succ [(PCon succ [(PCon zero [])])])"
 
+            -- Var tests
             it "Parser: Variable pattern is correctly positively identified" $ do
                case runParserEnd p "(succ (succ x))" of
                   []    -> error "\n\nParse failed.\n"
@@ -49,6 +56,7 @@ main = hspec $ do
                   []    -> error "\n\nParse failed.\n"
                   (x:_) -> (debugP x) `shouldBe` "(PCon succ [(PCon succ [(PCon X [])])])"
 
+            -- Or tests
             it "Parser: Or pattern is correctly identified" $ do
                case runParserEnd p "zero | one" of
                   []    -> error "\n\nParse failed.\n"
@@ -59,7 +67,27 @@ main = hspec $ do
                   []    -> error "\n\nParse failed.\n"
                   (x:_) -> (debugPVec x) `shouldBe` "[(POr (PCon zero []) | (PCon one [])), (PCon zero [])]"
 
+            it "Parser: Or pattern explicit parenthesization is correct on rows" $ do
+               case runParserEnd pvec "(zero | one) zero" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (debugPVec x) `shouldBe` "[(POr (PCon zero []) | (PCon one [])), (PCon zero [])]"
+
             it "Parser: Or pattern is correctly identified in constructor pattern" $ do
                case runParserEnd p "(succ zero | one)" of
                   []    -> error "\n\nParse failed.\n"
                   (x:_) -> (debugP x) `shouldBe` "(PCon succ [(POr (PCon zero []) | (PCon one []))])"
+                  
+
+            it "Parser: Or pattern is correct in nested or-patterns with mixed implicit and explicit parenthesization" $ do
+               case runParserEnd p "zero | (one | two)" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (debugP x) `shouldBe` "(POr (PCon zero []) | (POr (PCon one []) | (PCon two [])))"
+
+            -- Algorithm tests: Individual function tests
+            it "Algorithm: getSigma works correctly on edge cases" $ do
+               case runParserEnd pmat "(succ zero) nil\n\
+                                    \(cons zero nil) nil\n\
+                                    \two | (three | four) nil\n\
+                                    \x nil" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (intercalate ", " (getSigma x)) `shouldBe` "succ, cons, two, three, four"

@@ -111,9 +111,10 @@ type PMat  = [PVec]
 
 -- A structure for each pattern in the matrix, e.g.: "(nat x zero y)"
 data Pattern = PVar String
-            | PCon String [Pattern]
+            | PCon Constructor [Pattern]
             | POr Pattern Pattern
             deriving (Eq, Show)
+type Constructor = String
 
 -- A structure for types, e.g.: "OneOfThose Nat"
 data Type
@@ -152,8 +153,9 @@ pString = do
   pure (c:cs)
 
 pAtom :: Parser Char Pattern
-pAtom = pName <|> pCon
+pAtom = pOr <|> pName <|> pCon
   where
+    pOr = lit '(' *> ws' *> p <* ws' <* lit ')'  -- case or-pattern with explicit parentheses
     pCon = PCon <$ lit '(' <* ws' <*> pString <* ws' <*> many0 (p <* ws') <* lit ')' -- case constructed pattern with one or more arity
     pName = do
       name <- pString
@@ -166,7 +168,7 @@ pAtom = pName <|> pCon
 p :: Parser Char Pattern
 p = pAtom >>= \left ->
         (ws' *> lit '|' *> ws' *> pAtom >>= \right -> 
-            pure (POr left right)) -- case 'or'
+            pure (POr left right)) -- case or-pattern with implicit parentheses
         <|> pure left
 
 -- Parses a type, along with any applications already applied, e.g.: "OneOfThose Nat", into a structure
