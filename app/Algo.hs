@@ -23,10 +23,10 @@ useful dts p q@((PCon c rs): qs) = useful dts (specializedP c (length rs) p) (sp
 
 -- 2. Case wildcard _:
 useful dts p q@(v@(PVar var): qs) = let s = getSigma p 
-                              in case isComplete s of 
+                              in case isComplete s dts of 
 
                                 -- 2.(a) Case wildcard and sigma is complete: U(P, q) <-> \Or_{k=1}^z useful(S(c_k, P), S(c_k, q))
-                                True -> or [useful dts (specializedP c_k (getArity dts c_k) p) (specializedV c_k (getArity dts c_k) q) | c_k <- s]
+                                True -> or [useful dts (specializedP c_k (getArity c_k dts) p) (specializedV c_k (getArity c_k dts) q) | c_k <- s]
 
                                 -- 2.(b). Case wildcard and sigma is not complete: U(P, (_ q_2 ... q_n)) = U(D(P), (q_2 ... q_n))
                                 False -> useful dts (defaultP p) qs
@@ -66,6 +66,7 @@ specializedV _ _ _ = []
 defaultP :: PMat -> PMat
 defaultP = undefined
 
+-- the set of constructors that appear as root constructors of the patterns of P first column (and or-patterns recursively)
 getSigma :: PMat -> [Constructor]
 getSigma xs = nub $ getCons xs
     where getCons (x:xs) = case head x of 
@@ -74,20 +75,28 @@ getSigma xs = nub $ getCons xs
              _ -> []
           getCons [] = []
 
-getArity :: DTypes -> Constructor -> Int
+getArity :: Constructor -> DTypes -> Int
 getArity = undefined
 
-isComplete :: [Constructor] -> Bool
-isComplete = undefined
+--getTypeFromCon :: Constructor -> DTypes -> Bool
+--getTypeFromCon c ((name, qs):dts) = 
+--            (\(c', _))
+
+-- decides if sigma (set of constructer in first column) is complete the data type of the first column
+isComplete :: [Constructor] -> DTypes -> Bool
+isComplete s dts = undefined --getTypeFromCon s dts
 
 
 
--- Extension idea 1: Variables instead of Wildcards. Requires Free & Bound defs 
+-- Extension idea 1: Variables instead of Wildcards. Requires Free & Bound defs. Not sure how hard it is.
 
 -- Extension idea 2: Desugaring partial application: Allow "((succ succ) zero)" instead of just "(succ (succ zero))" 
---     -> maybe not a good idea.
+--     -> maybe not a good idea. Even haskell says "nah". But in lambda calc it's ok.
 
 -- Extension idea 3: "Maybe you forgot this case: [...]?"
 
--- Extension idea 4: Desugaring alternative constructors: Allow "(_ zero)" which desugars to "zero | (suc zero)",
---          allow "(succ | pred zero)" -> may require explicit parenthesization in or patterns.
+-- Extension idea 4: Desugaring wildcard constructors: 
+--          Allow "(_ zero)" which desugars to "zero | (suc zero)",
+--          Allow "(succ | pred zero)" -> may require explicit parenthesization in or-patterns. Should be easy.
+
+-- Extension idea 5: "This is a useless clause: [...]" trivial except for or-patterns which are difficult I think

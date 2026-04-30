@@ -15,22 +15,32 @@ main = hspec $ do
             -- Parser tests: Test file sections should be correctly parsed
 
             it "Parser: data types are correctly parsed" $ do
-               contents <- readFile "resources/test.txt"
-               case runParserEnd match' contents of
+               case runParserEnd dtypes "data Unit where\n\
+                                        \tt : Unit\n\
+                                        \\n\
+                                        \data Nat where\n\
+                                        \zero : Nat\n\
+                                        \suc  : Nat -> Nat" of
                   []    -> error "\n\nParse failed.\n"
-                  (x:_) -> (prettyDType $ (\(x,_,_) -> head x) x) `shouldBe` "Unit\n  tt : Unit"
+                  (x:_) -> (prettyDType $ head x) `shouldBe` "Unit\n  tt : Unit"
 
             it "Parser: pattern matrix is correctly parsed" $ do
-               contents <- readFile "resources/test.txt"
-               case runParserEnd match' contents of
+               case runParserEnd pmat "(nat x zero y) | (nat zero zero nil)  x\n\
+                                        \(list (cons zero nil))          x\n\
+                                        \(unit x)                  x" of
                   []    -> error "\n\nParse failed.\n"
-                  (x:_) -> (prettyPMat $ (\(_,x,_) -> x) x) `shouldBe` "(nat x zero y) | (nat zero zero nil) x\n(list (cons zero nil)) x\n(unit x) x"
+                  (x:_) -> (prettyPMat x) `shouldBe` "(nat x zero y) | (nat zero zero nil) x\n(list (cons zero nil)) x\n(unit x) x"
 
             it "Parser: type to be matched is correctly parsed" $ do
+               case runParserEnd vvec "OneOfThose Nat" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (prettyVVec x) `shouldBe` "OneOfThose Nat"
+
+            it "Parser: test file is correctly loaded and parsed" $ do
                contents <- readFile "resources/test.txt"
                case runParserEnd match' contents of
                   []    -> error "\n\nParse failed.\n"
-                  (x:_) -> (prettyType $ (\(_,_,x) -> x) x) `shouldBe` "OneOfThose Nat"
+                  (x:_) -> "If this runs the code parsed" `shouldBe` "If this runs the code parsed"
 
             -- Parser tests: Implicit and explicit data structures should be parsed correctly
             

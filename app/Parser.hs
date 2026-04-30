@@ -87,7 +87,7 @@ ws = many0 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
 ws1 :: Parser Char [Char]
 ws1 = many1 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
 
--- zero or more non-new-line chars
+-- zero or more non-new-line whitespace chars
 ws' :: Parser Char [Char]
 ws' = many0 (lit ' ' <|> lit '\t')
 
@@ -96,13 +96,16 @@ ws' = many0 (lit ' ' <|> lit '\t')
 
 
 -- A type for the entire structure that is be parsed
-type Match = (DTypes, PMat, Type)
+type Match = (DTypes, PMat, VVec)
 
 
 -- A type for our data type definitions, e.g.: 
 -- data Unit where
 --    tt : Unit
-type DType = (String, [(String, [Type])])
+type Type = String
+type Constructor = String
+
+type DType = (Type, [(Constructor, [Type])])
 type DTypes = [DType]
 
 -- A type for our pattern matrices
@@ -114,14 +117,9 @@ data Pattern = PVar String
             | PCon Constructor [Pattern]
             | POr Pattern Pattern
             deriving (Eq, Show)
-type Constructor = String
 
--- A structure for types, e.g.: "OneOfThose Nat"
-data Type
-  = TAtom String
-  | TApp Type Type
-  deriving (Eq, Show)
-
+-- A structure for the value vectors, e.g.: "OneOfThose Nat"
+type VVec = [Type]
 
 -- Parses any amount of data types and their constructor declarations into a structure
 dtypes :: Parser Char DTypes
@@ -171,9 +169,13 @@ p = pAtom >>= \left ->
             pure (POr left right)) -- case or-pattern with implicit parentheses
         <|> pure left
 
--- Parses a type, along with any applications already applied, e.g.: "OneOfThose Nat", into a structure
+-- Parses a type
 ttype :: Parser Char Type
-ttype = foldl1 TApp <$> sepBy1 (TAtom <$> string) ws1
+ttype = string
+
+-- Parses a value vector, e.g.: "OneOfThose Nat", into a structure
+vvec :: Parser Char VVec
+vvec = sepBy1 ttype ws'
 
 -- Parse the entire match structure
 match :: Parser Char Match
@@ -181,7 +183,7 @@ match =
   (,,)
     <$> (ws *> lits "=== data types ===" *> ws *> dtypes)
     <*> (ws *> lits "=== pattern matrix ===" *> ws *> pmat)
-    <*> (ws *> lits "=== type ===" *> ws *> ttype)
+    <*> (ws *> lits "=== type ===" *> ws *> vvec)
 
 match' :: Parser Char Match
 match' = ws *> match <* ws
@@ -191,7 +193,7 @@ match' = ws *> match <* ws
 -- pretty[...] is for displaying the parsed data type for debugging and testing
 
 prettyMatch :: Match -> String
-prettyMatch (x, y, z) = "\n=== data types ===\n" ++ prettyDTypes x ++ "\n\n=== pattern matrix ===\n" ++ prettyPMat y ++ "\n\n=== type ===\n" ++ prettyType z
+prettyMatch (x, y, z) = "\n=== data types ===\n" ++ prettyDTypes x ++ "\n\n=== pattern matrix ===\n" ++ prettyPMat y ++ "\n\n=== type ===\n" ++ prettyVVec z
 
 prettyDTypes :: DTypes -> String
 prettyDTypes xs = intercalate "\n\n" $ prettyDType <$> xs
@@ -223,5 +225,7 @@ debugP (PCon x []) = "(PCon " ++ x ++ " [])"
 debugP (PCon x xs) = "(PCon " ++ x ++ " [" ++ intercalate ", " (debugP <$> xs) ++ "])"
 
 prettyType :: Type -> String
-prettyType (TAtom x) = x
-prettyType (TApp x y) = prettyType x ++ " " ++ prettyType y
+prettyType = id
+
+prettyVVec :: VVec -> String
+prettyVVec xs = intercalate " " $ prettyType <$> xs
