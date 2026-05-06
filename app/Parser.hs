@@ -124,12 +124,12 @@ type VVec = [Type]
 -- Parses any amount of data types and their constructor declarations into a structure
 dtypes :: Parser Char DTypes
 dtypes = many1 dtype where
-  dtype = (,) <$> (lits "data" *> ws *> string) <* ws <* lits "where" <* ws <*> constrDeclarations <* ws
+  dtype = (,) <$> (lits "data" *> ws *> ttype) <* ws <* lits "where" <* ws <*> constrDeclarations <* ws
 
 -- Parses any amount of "f : a -> b -> c ..." type signatures into a list 
 constrDeclarations :: Parser Char [(String, [Type])]
-constrDeclarations = many1 constrDeclaration where
-  constrDeclaration = (,) <$> string <* ws <* lit ':' <* ws <*> typeSignature
+constrDeclarations = sepBy1 constrDeclaration (ws' *> lit '\n' *> ws') where
+  constrDeclaration = (,) <$> constructor <* ws <* lit ':' <* ws <*> typeSignature
 
 -- Parses "a -> b -> c ..." into a list of types
 typeSignature :: Parser Char [Type] 
@@ -173,9 +173,12 @@ p = pAtom >>= \left ->
 ttype :: Parser Char Type
 ttype = string
 
+constructor :: Parser Char Constructor
+constructor = string
+
 -- Parses a value vector, e.g.: "OneOfThose Nat", into a structure
 vvec :: Parser Char VVec
-vvec = sepBy1 ttype ws'
+vvec = sepBy1 ttype ws1
 
 -- Parse the entire match structure
 match :: Parser Char Match

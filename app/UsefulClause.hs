@@ -1,7 +1,7 @@
-module Algo where
+module UsefulClause where
 
 import Parser
-import Data.List (nub)
+import Data.List (sort, nub)
 
 -- Implementation of part of "Warnings for pattern matching" by Luc Maranget
 
@@ -38,15 +38,15 @@ useful dts p q@((POr r_1 r_2): qs) = or [useful dts p (r_1:qs), useful dts p (r_
 
 -- The specialized matrix S(c,P) for constructor patterns. Recursive! The arity of the constructor is needed for the wildcard case.
 specializedP :: Constructor -> Int -> PMat -> PMat
-specializedP c _ [] = []
+specializedP _ _ [] = []
 specializedP c a (v:vs) = case v of
 
     -- 1. Case or-pattern (needs to be handled separately, as it produces two rows)
     ((POr r1 r2):ps) -> (specializedP c a [(r1:ps), (r2:ps)]) ++ (specializedP c a vs)
 
     -- 2. Every other case gets relegated to the vector version of this function
-    _ -> (specializedV c a v) : (specializedP c a vs)
-specializedP _ _ _ = []
+    _ -> if specV == [] then (specializedP c a vs) else specV : (specializedP c a vs)
+            where specV = specializedV c a v
 
 
 -- The specialized vector S(c,v) for constructor patterns. It needs a for the wildcard case.
@@ -60,13 +60,25 @@ specializedV c a v = case v of
 
     -- 2. Case row is wildcard (in our case a var)
     (pv@(PVar v):ps)    -> (replicate a pv ++ ps)
-specializedV _ _ _ = []
+    _ -> []
 
 
+-- 
 defaultP :: PMat -> PMat
-defaultP = undefined
+defaultP [] = []
+defaultP (v:vs) = case v of
 
--- the set of constructors that appear as root constructors of the patterns of P first column (and or-patterns recursively)
+    -- 1. Case row is constructor pattern
+    ((PCon _ _):_) -> defaultP vs -- No row
+
+    -- 2. Case row is wildcard (in our case a var)
+    ((PVar _):ps) -> ps : defaultP vs
+
+    -- 3. Case or-pattern
+    ((POr r1 r2):ps) -> defaultP [(r1:ps), (r2:ps)] ++ defaultP vs
+
+
+-- The set of constructors that appear as root constructors of the patterns of P first column (and or-patterns recursively)
 getSigma :: PMat -> [Constructor]
 getSigma xs = nub $ getCons xs
     where getCons (x:xs) = case head x of 
@@ -75,16 +87,39 @@ getSigma xs = nub $ getCons xs
              _ -> []
           getCons [] = []
 
+-- Get the arity of a constructor based on the data type definitions given
 getArity :: Constructor -> DTypes -> Int
-getArity = undefined
+getArity c dts = 
+    case [ ts | (_, cds) <- dts, (c', ts) <- cds, c == c' ] of
+        (ts: _)-> length ts
+        [] -> error "\n\nNo match Found\n\n"
 
---getTypeFromCon :: Constructor -> DTypes -> Bool
---getTypeFromCon c ((name, qs):dts) = 
---            (\(c', _))
+-- Get the type a constructor belongs to
+getTypeFromCon :: Constructor -> DTypes -> Type
+getTypeFromCon c dts = 
+    case [ t | (t, cds) <- dts, c `elem` fmap (\(c',_) -> c') cds ] of
+        (t:_) -> t
+        []    -> error "\n\nNo match Found\n\n"
 
--- decides if sigma (set of constructer in first column) is complete the data type of the first column
+
+-- Decides if sigma (set of constructers in first column) is complete within their data type
+-- If the first column only has wildcards then obviously sigma is not complete
 isComplete :: [Constructor] -> DTypes -> Bool
-isComplete s dts = undefined --getTypeFromCon s dts
+isComplete [] _ = False
+isComplete cs@(c:_) dts = 
+    case [ first <$> cds | (t, cds) <- dts, t == getTypeFromCon c dts] of
+        (cs': _) -> areSetsEqual cs cs'
+        _ -> False
+    where first (x, _) = x
+
+
+areSetsEqual :: (Ord a) => [a] -> [a] -> Bool
+areSetsEqual xs ys = sort xs == sort ys
+
+
+-- More practical infix version
+isUsefulTo :: PVec -> PMat -> DTypes -> Bool
+(q `isUsefulTo` p) dts = useful dts p q
 
 
 

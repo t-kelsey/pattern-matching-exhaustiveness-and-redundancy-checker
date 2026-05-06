@@ -1,7 +1,7 @@
 module Main where
 
 import Parser
-import Algo
+import UsefulClause
 import Test.Hspec 
 import Test.QuickCheck
 import Control.Exception (evaluate)
@@ -40,7 +40,7 @@ main = hspec $ do
                contents <- readFile "resources/test.txt"
                case runParserEnd match' contents of
                   []    -> error "\n\nParse failed.\n"
-                  (x:_) -> "If this runs the code parsed" `shouldBe` "If this runs the code parsed"
+                  (_:_) -> "If this runs the code parsed" `shouldBe` "If this runs the code parsed"
 
             -- Parser tests: Implicit and explicit data structures should be parsed correctly
             
@@ -93,11 +93,39 @@ main = hspec $ do
                   []    -> error "\n\nParse failed.\n"
                   (x:_) -> (debugP x) `shouldBe` "(POr (PCon zero []) | (POr (PCon one []) | (PCon two [])))"
 
-            -- Algorithm tests: Individual function tests
-            it "Algorithm: getSigma works correctly on edge cases" $ do
+            -- Useful clause tests: Individual function tests
+            it "Useful clause: getSigma works correctly on edge cases" $ do
                case runParserEnd pmat "(succ zero) nil\n\
-                                    \(cons zero nil) nil\n\
+                                    \zero (cons zero nil)\n\
                                     \two | (three | four) nil\n\
                                     \x nil" of
                   []    -> error "\n\nParse failed.\n"
-                  (x:_) -> (intercalate ", " (getSigma x)) `shouldBe` "succ, cons, two, three, four"
+                  (x:_) -> (intercalate ", " (getSigma x)) `shouldBe` "succ, zero, two, three, four"
+
+            it "Useful clause: specializedP (V) works correctly on edge cases" $ do
+               case runParserEnd pmat "(cons one nil) nil\n\
+                                    \(cons zero nil) nil\n\
+                                    \nil | (nil | y) nil\n\
+                                    \x nil" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (prettyPMat (specializedP "cons" 2 x)) `shouldBe` "one nil nil\nzero nil nil\ny y nil\nx x nil"
+
+            it "Useful clause: defaultP works correctly on edge cases" $ do
+               case runParserEnd pmat "(cons one nil) nil\n\
+                                    \(cons zero nil) nil\n\
+                                    \nil | (nil | y) nil\n\
+                                    \x nil" of
+                  []    -> error "\n\nParse failed.\n"
+                  (x:_) -> (prettyPMat (defaultP x)) `shouldBe` "nil\nnil"
+
+            it "Useful clause: Main function test negative example edge case" $ do
+               contents <- readFile "resources/test.txt"
+               case runParserEnd match' contents of
+                  []    -> error "\n\nParse failed.\n"
+                  ((dts, p, _):_) -> ([(PCon "nat" [(PCon "zero" []), (PCon "zero" [])]), (PVar "x")] `isUsefulTo` p $ dts) `shouldBe` False
+
+            it "Useful clause: Main function test positive example edge case" $ do
+               contents <- readFile "resources/test.txt"
+               case runParserEnd match' contents of
+                  []    -> error "\n\nParse failed.\n"
+                  ((dts, p, _):_) -> ([(PCon "nat" [(PCon "zero" []), (PCon "x" []), (PVar "nil")]), (PVar "x")] `isUsefulTo` p $ dts) `shouldBe` True

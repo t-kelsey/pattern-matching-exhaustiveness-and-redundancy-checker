@@ -61,7 +61,7 @@ executable pattern-matching-exhaustiveness-and-redundancy-checker
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules:    Parser, Algo
+    other-modules:    Parser, UsefulClause, Detection
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -83,7 +83,7 @@ test-Suite test
     main-is:          Test.hs
     -- Modules included in this executable, other than Main.
 
-    other-modules:    Parser, Algo
+    other-modules:    Parser, UsefulClause, Detection
 
     build-depends:    base ^>=4.18.2,
                       hspec ^>=2.11.16,
