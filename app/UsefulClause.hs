@@ -13,20 +13,26 @@ import Data.List (sort, nub)
 useful :: DTypes -> PMat -> PVec -> Bool
 
 -- The base cases of the induction, where n = 0
-useful _ _ [] = False -- U((), ()) = False
 useful _ [] _ = True -- U({}, q) = True
+useful _ _ [] = False -- U((), ()) = False
 
 -- Cases for n > 0:
 
 -- 1. Case constructed pattern q1 = c(p1, p2, ...): U(P, q) <-> U(S(c, P), S(c, q))
-useful dts p q@((PCon c rs): qs) = useful dts (specializedP c (length rs) p) (specializedV c (length rs) q)
+useful dts p q@((PCon c rs): qs) = useful dts (specializedP c (length rs) p) specV
+    where specV = case specializedV c (length rs) q of
+                    (Just sV) -> sV
+                    Nothing -> error "This case isn't possible"
 
 -- 2. Case wildcard _:
 useful dts p q@(v@(PVar var): qs) = let s = getSigma p 
                               in case isComplete s dts of 
 
                                 -- 2.(a) Case wildcard and sigma is complete: U(P, q) <-> \Or_{k=1}^z useful(S(c_k, P), S(c_k, q))
-                                True -> or [useful dts (specializedP c_k (getArity c_k dts) p) (specializedV c_k (getArity c_k dts) q) | c_k <- s]
+                                True -> or [useful dts (specializedP c_k (getArity c_k dts) p) (specV c_k) | c_k <- s]
+                                    where specV c_k = case specializedV c_k (getArity c_k dts) q of
+                                                    (Just sV) -> sV
+                                                    Nothing -> error "This case isn't possible"
 
                                 -- 2.(b). Case wildcard and sigma is not complete: U(P, (_ q_2 ... q_n)) = U(D(P), (q_2 ... q_n))
                                 False -> useful dts (defaultP p) qs
@@ -45,22 +51,26 @@ specializedP c a (v:vs) = case v of
     ((POr r1 r2):ps) -> (specializedP c a [(r1:ps), (r2:ps)]) ++ (specializedP c a vs)
 
     -- 2. Every other case gets relegated to the vector version of this function
-    _ -> if specV == [] then (specializedP c a vs) else specV : (specializedP c a vs)
-            where specV = specializedV c a v
+    _ -> case specializedV c a v of 
+        Nothing      -> (specializedP c a vs)
+        (Just specV) -> specV : (specializedP c a vs)
+
 
 
 -- The specialized vector S(c,v) for constructor patterns. It needs a for the wildcard case.
-specializedV :: Constructor -> Int -> PVec -> PVec 
+-- Returns Nothing if No row, returns Just (PVec) else
+specializedV :: Constructor -> Int -> PVec -> Maybe PVec 
 specializedV c a v = case v of
 
     -- 1. Case row is constructor pattern 
     ((PCon c' rs):ps) -> if c == c' 
-                        then (rs ++ ps) -- If the row's con pattern is the same as the 'original' con pattern
-                        else []         -- If it isn't
+                        then Just (rs ++ ps) -- If the row's con pattern is the same as the 'original' con pattern
+                        else Nothing         -- If it isn't
+                        -- The maybe is because rs ++ ps can be [] (last column PCon with arity 0)
 
     -- 2. Case row is wildcard (in our case a var)
-    (pv@(PVar v):ps)    -> (replicate a pv ++ ps)
-    _ -> []
+    (pv@(PVar v):ps)    -> Just (replicate a pv ++ ps)
+    _ -> Nothing
 
 
 -- 
@@ -77,29 +87,35 @@ defaultP (v:vs) = case v of
     -- 3. Case or-pattern
     ((POr r1 r2):ps) -> defaultP [(r1:ps), (r2:ps)] ++ defaultP vs
 
+    _ -> [[]]
+
 
 -- The set of constructors that appear as root constructors of the patterns of P first column (and or-patterns recursively)
 getSigma :: PMat -> [Constructor]
+getSigma [] = []
 getSigma xs = nub $ getCons xs
-    where getCons (x:xs) = case head x of 
-             (PCon c ts) -> c : (getCons xs)
-             (POr r1 r2) -> (getCons [[r1], [r2]]) ++ (getCons xs)
-             _ -> []
-          getCons [] = []
+
+        where getCons [] = [] 
+              getCons (x:xs) = case x of 
+                [] -> []
+                (y:ys) -> case y of
+                  (PCon c ts) -> c : (getCons xs)
+                  (POr r1 r2) -> (getCons [[r1], [r2]]) ++ (getCons xs)
+                  _ -> getCons xs
 
 -- Get the arity of a constructor based on the data type definitions given
 getArity :: Constructor -> DTypes -> Int
 getArity c dts = 
     case [ ts | (_, cds) <- dts, (c', ts) <- cds, c == c' ] of
-        (ts: _)-> length ts
-        [] -> error "\n\nNo match Found\n\n"
+        (ts: _)-> length ts - 1 -- The last Type is the return type and not part of the arguments
+        [] -> error $ "\n\nConstructor " ++ show c ++ " not found in data type definitions given:\n\n" ++ prettyDTypes dts ++ "\n"
 
 -- Get the type a constructor belongs to
 getTypeFromCon :: Constructor -> DTypes -> Type
 getTypeFromCon c dts = 
     case [ t | (t, cds) <- dts, c `elem` fmap (\(c',_) -> c') cds ] of
         (t:_) -> t
-        []    -> error "\n\nNo match Found\n\n"
+        []    -> error $ "\n\nConstructor " ++ show c ++ " not found in data type definitions given:\n\n" ++ prettyDTypes dts ++ "\n"
 
 
 -- Decides if sigma (set of constructers in first column) is complete within their data type

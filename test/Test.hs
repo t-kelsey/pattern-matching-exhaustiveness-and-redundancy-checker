@@ -131,6 +131,22 @@ main = hspec $ do
                   []    -> error "\n\nParse failed.\n"
                   ((dts, p, _):_) -> ([(PCon "nat" [(PCon "zero" []), (PCon "x" []), (PVar "nil")]), (PVar "x")] `isUsefulTo` p $ dts) `shouldBe` True
 
+            it "Useful clause: Bound variables positive example" $ do
+               let p = [[(PVar "x"),  (PVar "x")],
+                        [(PVar "x"),         (PCon "apple" [])],
+                        [(PCon "orange" []), (PVar "x")]]
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Fruit"])])]
+               let v = [(PCon "apple" []), PCon "orange" []]
+               (v `isUsefulTo` p $ dts) `shouldBe` True
+
+            it "Useful clause: Bound variables negative example" $ do
+               let p = [[(PVar "x"),  (PVar "y")],
+                        [(PVar "x"),         (PCon "apple" [])],
+                        [(PCon "orange" []), (PVar "x")]]
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Fruit"])])]
+               let v = [(PCon "apple" []), PCon "orange" []]
+               (v `isUsefulTo` p $ dts) `shouldBe` False
+
             it "Detection: exhaustive function general test negative example" $ do
                contents <- readFile "resources/test.txt"
                case runParserEnd match' contents of
@@ -146,4 +162,17 @@ main = hspec $ do
             it "Detection: exhaustive function test edge case not all constructors used of data type" $ do
                let p = [[(PCon "apple" [])],[(PCon "orange" [])]]
                let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Fruit"])])]
-               (p `isExhaustiveUnder` dts) `shouldBe` False
+               ([(PVar "x")] `isUsefulTo` p $ dts) `shouldBe` True
+
+            it "Detection: exhaustive function test edge case all constructors used of data type" $ do
+               let p = [[(PCon "apple" [])],[(PCon "orange" [])],[(PCon "pear" [])]]
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Fruit"])])]
+               ([(PVar "x")] `isUsefulTo` p $ dts) `shouldBe` False
+
+            it "Detection: exhaustive function test edge case constructor exhaustion" $ do
+               let p = [[(PCon "apple" []),  (PVar "x")],
+                        [(PVar "x"),         (PCon "apple" [])],
+                        [(PCon "orange" []), (PVar "x")]]
+                     -- [(PVar "x"),         (PCon "orange")] This case isn't needed due to constuctor exhaustion
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])])]
+               ([(PVar "x")] `isUsefulTo` p $ dts) `shouldBe` False

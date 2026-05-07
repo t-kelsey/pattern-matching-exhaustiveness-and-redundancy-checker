@@ -218,6 +218,15 @@ prettyP (POr x y) = prettyP x ++ " | " ++ prettyP y
 prettyP (PCon x []) = x
 prettyP (PCon x xs) = "(" ++ intercalate " " (x : (prettyP <$> xs)) ++ ")"
 
+prettyType :: Type -> String
+prettyType = id
+
+prettyVVec :: VVec -> String
+prettyVVec xs = intercalate " " $ prettyType <$> xs
+
+debugPMat :: PMat -> String
+debugPMat xs = "\n" ++ intercalate "\n" (fmap debugPVec xs) ++ "\n"
+
 debugPVec :: PVec -> String
 debugPVec xs = "[" ++ intercalate ", " (fmap debugP xs) ++ "]"
 
@@ -226,9 +235,3 @@ debugP (PVar x) = "(PVar " ++ x ++ ")"
 debugP (POr x y) = "(POr " ++ debugP x ++ " | " ++ debugP y ++ ")"
 debugP (PCon x []) = "(PCon " ++ x ++ " [])"
 debugP (PCon x xs) = "(PCon " ++ x ++ " [" ++ intercalate ", " (debugP <$> xs) ++ "])"
-
-prettyType :: Type -> String
-prettyType = id
-
-prettyVVec :: VVec -> String
-prettyVVec xs = intercalate " " $ prettyType <$> xs

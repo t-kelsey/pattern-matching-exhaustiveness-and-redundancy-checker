@@ -4,7 +4,7 @@ data Unit where
 
 data Nat where
   zero : Nat
-  suc  : Nat -> Nat
+  succ : Nat -> Nat
 
 data List where
   nil  : List

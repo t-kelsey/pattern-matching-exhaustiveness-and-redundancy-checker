@@ -13,4 +13,4 @@ main = do
     case runParserEnd match' contents of
         []    -> error "\n\nParser Error: runParserEnd could not match test.txt. Check your syntax.\n"
         --(x:_) -> putStrLn "\nsuccess\n"
-        ((dts, p, _):_) -> putStrLn (show $ exhaustive dts p)
+        ((dts, p, _):_) -> putStrLn (show $ [(PVar "x")] `isUsefulTo` p $ dts)
