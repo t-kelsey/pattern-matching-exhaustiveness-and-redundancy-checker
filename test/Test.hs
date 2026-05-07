@@ -1,6 +1,7 @@
 module Main where
 
 import Parser
+import Detection
 import UsefulClause
 import Test.Hspec 
 import Test.QuickCheck
@@ -118,14 +119,31 @@ main = hspec $ do
                   []    -> error "\n\nParse failed.\n"
                   (x:_) -> (prettyPMat (defaultP x)) `shouldBe` "nil\nnil"
 
-            it "Useful clause: Main function test negative example edge case" $ do
+            it "Useful clause: Main function test negative example" $ do
                contents <- readFile "resources/test.txt"
                case runParserEnd match' contents of
                   []    -> error "\n\nParse failed.\n"
                   ((dts, p, _):_) -> ([(PCon "nat" [(PCon "zero" []), (PCon "zero" [])]), (PVar "x")] `isUsefulTo` p $ dts) `shouldBe` False
 
-            it "Useful clause: Main function test positive example edge case" $ do
+            it "Useful clause: Main function test positive example" $ do
                contents <- readFile "resources/test.txt"
                case runParserEnd match' contents of
                   []    -> error "\n\nParse failed.\n"
                   ((dts, p, _):_) -> ([(PCon "nat" [(PCon "zero" []), (PCon "x" []), (PVar "nil")]), (PVar "x")] `isUsefulTo` p $ dts) `shouldBe` True
+
+            it "Detection: exhaustive function general test negative example" $ do
+               contents <- readFile "resources/test.txt"
+               case runParserEnd match' contents of
+                  []    -> error "\n\nParse failed.\n"
+                  ((dts, p, _):_) -> (p `isExhaustiveUnder` dts) `shouldBe` False
+
+            it "Detection: exhaustive function general test positive example" $ do
+               contents <- readFile "resources/test.txt"
+               case runParserEnd match' contents of
+                  []    -> error "\n\nParse failed.\n"
+                  ((dts, p, _):_) -> (([(PVar "z"), (PVar "z")]:p) `isExhaustiveUnder` dts) `shouldBe` True
+
+            it "Detection: exhaustive function test edge case not all constructors used of data type" $ do
+               let p = [[(PCon "apple" [])],[(PCon "orange" [])]]
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Fruit"])])]
+               (p `isExhaustiveUnder` dts) `shouldBe` False
