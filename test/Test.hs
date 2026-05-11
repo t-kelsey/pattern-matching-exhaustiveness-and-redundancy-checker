@@ -198,6 +198,23 @@ main = hspec $ do
                let p = [[(PCon "apple" []),  (PVar "x")],
                         [(PVar "x"),         (PCon "apple" [])],
                         [(PCon "orange" []), (PVar "x")]]
-                     -- [(PVar "x"),         (PCon "orange")] This case isn't needed due to constuctor exhaustion
+                     -- [(PVar "x"),         (PCon "orange" [])] This case isn't needed due to constuctor exhaustion
                let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])])]
                ([(PVar "x")] `isUsefulTo` p $ dts) `shouldBe` False
+
+            it "Detection: contains useless row function positive example" $ do
+               let p = [[(PCon "apple" []),  (PVar "x")],
+                        [(PVar "x"),         (PCon "apple" [])],
+                        [(PCon "orange" []), (PVar "x")],
+                        [(PVar "x"),         (PCon "orange" [])]]
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])])]
+               (containsUselessRow dts p) `shouldBe` (Just [(PVar "x"), (PCon "orange" [])])
+
+            it "Detection: contains useless row function negative example" $ do
+               let p = [[(PCon "apple" []),  (PVar "x")],
+                        [(PVar "x"),         (PCon "apple" [])],
+                        [(PCon "orange" []), (PVar "x")],
+                        [(PVar "x"),         (PCon "orange" [])],
+                        [(PVar "x"),         (PVar "y")]]
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Pear"])])]
+               (containsUselessRow dts p) `shouldBe` (Nothing)

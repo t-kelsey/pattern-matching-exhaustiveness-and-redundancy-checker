@@ -1,5 +1,4 @@
 === data types ===
-
 data Unit where
   tt : Unit
 
@@ -16,12 +15,13 @@ data OneOfThose where
   list : List -> OneOfThose
   unit : Unit -> OneOfThose
 
-data Fruit where
-  apple : Fruit
-  orange : Fruit
-
 === pattern matrix ===
-apple
+(nat x zero y) | (nat zero zero nil)  x
+      (list (cons zero nil))          x
+            (unit x)                  x
+(nat x y z) v
+(nat zero x y) z
+(list x) y
 
 === type ===
 OneOfThose Nat
