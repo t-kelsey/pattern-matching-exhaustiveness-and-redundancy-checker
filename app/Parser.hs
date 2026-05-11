@@ -193,6 +193,16 @@ match' = ws *> match <* ws
 
 
 
+-- Semantic tests functions for the parser 
+
+-- Make sure that each constructor returns the type it is supposed to construct
+dtypeConReturnsType :: DTypes -> Bool
+dtypeConReturnsType dts = all (==True) [t == (last ts) | (t, cds) <- dts, (_, ts) <- cds]
+
+
+
+-- Displaying and testing functions
+
 -- pretty[...] is for displaying the parsed data type for debugging and testing
 
 prettyMatch :: Match -> String

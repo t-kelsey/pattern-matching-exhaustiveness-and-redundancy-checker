@@ -94,6 +94,15 @@ main = hspec $ do
                   []    -> error "\n\nParse failed.\n"
                   (x:_) -> (debugP x) `shouldBe` "(POr (PCon zero []) | (POr (PCon one []) | (PCon two [])))"
 
+            -- Parser semantic tests
+            it "Parser semantic: each constructor returns the type it is supposed to positive" $ do
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("citrus", ["Citrus", "Fruit"])])]
+               (dtypeConReturnsType dts) `shouldBe` True
+
+            it "Parser semantic: each constructor returns the type it is supposed to negative" $ do
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("citrus", ["Citrus"])])]
+               (dtypeConReturnsType dts) `shouldBe` False
+
             -- Useful clause tests: Individual function tests
             it "Useful clause: getSigma works correctly on edge cases" $ do
                case runParserEnd pmat "(succ zero) nil\n\
@@ -131,20 +140,36 @@ main = hspec $ do
                   []    -> error "\n\nParse failed.\n"
                   ((dts, p, _):_) -> ([(PCon "nat" [(PCon "zero" []), (PCon "x" []), (PVar "nil")]), (PVar "x")] `isUsefulTo` p $ dts) `shouldBe` True
 
-            it "Useful clause: Bound variables positive example" $ do
+            it "Useful clause: Bound variables same type positive example" $ do
                let p = [[(PVar "x"),  (PVar "x")],
                         [(PVar "x"),         (PCon "apple" [])],
                         [(PCon "orange" []), (PVar "x")]]
-               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Fruit"])])]
-               let v = [(PCon "apple" []), PCon "orange" []]
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])])]
+               let v = [(PCon "apple" []), (PCon "orange" [])]
                (v `isUsefulTo` p $ dts) `shouldBe` True
 
-            it "Useful clause: Bound variables negative example" $ do
+            it "Useful clause: Bound variables same type negative example" $ do
                let p = [[(PVar "x"),  (PVar "y")],
                         [(PVar "x"),         (PCon "apple" [])],
                         [(PCon "orange" []), (PVar "x")]]
-               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Fruit"])])]
-               let v = [(PCon "apple" []), PCon "orange" []]
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])])]
+               let v = [(PCon "apple" []), (PCon "orange" [])]
+               (v `isUsefulTo` p $ dts) `shouldBe` False
+
+            it "Useful clause: Bound variables nested positive example" $ do
+               let p = [[(PCon "succ" [(PVar "y")]),  (PVar "y")],
+                        [(PVar "x"),         (PCon "apple" [])],
+                        [(PCon "zero" []), (PVar "x")]]
+               let dts = [("Nat", [("zero", ["Nat"]), ("succ", ["Nat", "Nat"])]), ("Fruit", [("apple", ["Fruit"])])]
+               let v = [(PCon "succ" [(PCon "zero" [])]), (PCon "zero" [])]
+               (v `isUsefulTo` p $ dts) `shouldBe` True
+
+            it "Useful clause: Bound variables nested negative example" $ do
+               let p = [[(PCon "succ" [(PVar "y")]),  (PVar "y")],
+                        [(PVar "x"),         (PCon "apple" [])],
+                        [(PCon "zero" []), (PVar "x")]]
+               let dts = [("Nat", [("zero", ["Nat"]), ("succ", ["Nat", "Nat"])]), ("Fruit", [("apple", ["Fruit"])])]
+               let v = [(PCon "succ" [(PCon "zero" [])]), (PCon "orange" [])]
                (v `isUsefulTo` p $ dts) `shouldBe` False
 
             it "Detection: exhaustive function general test negative example" $ do
