@@ -1,7 +1,6 @@
 module Main where
 
 import Parser
-import UsefulClause
 import Detection
 
 main :: IO ()
@@ -10,8 +9,48 @@ main = do
     case runParserEnd match' contents of
 
         []              -> error "\n\nParser Error: runParserEnd could not match test.txt. Check your syntax.\n"
-
+        -- If the datatypes and pattern matrix  parse, run the warnings function on them
         ((dts, p, _):_) -> putStrLn (warnings dts p)
+
+
+
+-- This is the main function of this project. The output is the combination of warnings 
+-- generated, semantic input checking, and of course the exhaustiveness check.
+warnings :: DTypes -> PMat -> String
+warnings dts p = case semanticTestsTextGen of
+        "" -> do
+            let header = "\n\n--- EXHAUSTIVENESS AND REDUNDANCY CHECKER OUTPUT ---"
+            let footer = "\n\n----------------------------------------------------"
+            -- here extensions such as overcomplicated cases
+            -- ocCasesText = ocCasesTextGen
+
+            header ++ isExTextGen ++ urTextGen ++ footer
+        errorText -> errorText
+
+    where 
+          isExTextGen :: String
+          isExTextGen =
+            case p `isExhaustiveUnder` dts of
+
+                True -> "\n\n    Success: Cases are exhaustive"
+                False -> "\n\n    Failure: Cases are not exhaustive" ++ casesForExTextGen
+
+          urTextGen :: String
+          urTextGen =
+            case containsUselessRow dts p of
+
+                (Just pv) -> "\n\n    '" ++ prettyPVec pv ++ "'\n    ^ This case in the pattern matrix is redundant"
+                Nothing -> ""
+
+          casesForExTextGen :: String
+          casesForExTextGen = "\n\n    Maybe you forgot this case: Not implemented yet"
+
+          semanticTestsTextGen :: String
+          semanticTestsTextGen = do
+            let d = if dtypeConReturnsType dts then "" else "\n\nEach constructor must returns the type it is supposed to construct!\
+                                                               \Check your data type definitions.\n\n"
+            -- other semantic tests, not implemented yet
+            d
 
 
 -- data Nat where

@@ -38,38 +38,4 @@ containsUselessRow dts p = checkRows ((length p) - 1)
                 True -> Just (p!!i)
                 False -> checkRows (i-1)
 
--- This is the main function of this project. The output is the combination of warnings 
--- generated, and of course the exhaustiveness check.
-warnings :: DTypes -> PMat -> String
-warnings dts p = case semanticTestsTextGen of
-        "" -> do
-            let header = "\n\n--- EXHAUSTIVENESS AND REDUNDANCY CHECKER OUTPUT ---"
-            let footer = "\n\n----------------------------------------------------"
-            -- here extensions such as overcomplicated cases
-            -- ocCasesText = ocCasesTextGen
-
-            header ++ isExTextGen ++ urTextGen ++ footer
-        errorText -> errorText
-
-    where 
-          isExTextGen :: String
-          isExTextGen =
-            case p `isExhaustiveUnder` dts of
-
-                True -> "\n\n    Success: Cases are exhaustive"
-                False -> "\n\n    Failure: Cases are not exhaustive" ++ casesForExTextGen
-
-          urTextGen :: String
-          urTextGen =
-            case containsUselessRow dts p of
-
-                (Just pv) -> "\n\n    '" ++ prettyPVec pv ++ "'\n    ^ This case in the pattern matrix is redundant"
-                Nothing -> ""
-
-          casesForExTextGen :: String
-          casesForExTextGen = "\n\n    Maybe you forgot this case: Not implemented yet"
-
-          semanticTestsTextGen :: String
-          semanticTestsTextGen = ""
-
           
