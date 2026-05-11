@@ -6,7 +6,7 @@ A reusable library to check the correctness and exhaustiveness of nested pattern
 
 ---
 
-#### The instructions:
+#### The instructions
 
 - Define set of ADTs with constructors and field types
 - Receives type of initial expression + set of branches (ie. patterns) as inputs
@@ -19,22 +19,44 @@ A reusable library to check the correctness and exhaustiveness of nested pattern
 
 ---
 
-#### Code structure:
+#### Code structure
 
 - src
-  - reader
-  - parser
-  - main
+  - Parser
+  - Main
+  - UsefulClause
+  - Detection
 
 - test
-  - test
+  - Test
 
 - resources
   - input
-  - test_input
-- lib
+  - test
 
+---
 
+### Most important functions of library
+
+`useful :: DTypes -> PMat -> PVec -> Bool`\
+Check if a given value vector is useful to a pattern matrix, i.e. if there are additional
+cases not covered by the pattern matrix that are covered by the value vector.
+
+`exhaustive :: DTypes -> PMat -> Bool`\
+Check is a pattern matrix is exhaustive under defined data types.
+$P$ is exhaustive if and only if $U\(P,\\_ ... \\_\)$ is false.
+
+`containsUselessRow :: DTypes -> PMat -> Maybe PVec`\
+Check if the given pattern matrix contains a useless row.
+$P$ does not have useless rows if $UR\(P, i\)$ is false for all $i$
+Always just gives the last useless row, but all information is there:
+Once the last row is corrected, the useless row infront is detected.
+
+`warnings :: DTypes -> PMat -> String`\
+This is the main function of this project. The output is the combination of warnings 
+generated, and of course the exhaustiveness check result, along with semantic checking of the input.
+
+---
 
 ##### Workflow
 `cabal run`
