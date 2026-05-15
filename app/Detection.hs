@@ -2,6 +2,7 @@ module Detection where
 
 import UsefulClause
 import Parser
+import Data.List (sort)
 
 
 -- Check is a pattern matrix is exhaustive under defined data types
@@ -38,4 +39,50 @@ containsUselessRow dts p = checkRows ((length p) - 1)
                 True -> Just (p!!i)
                 False -> checkRows (i-1)
 
+
+-- Type Checking functions (Semantic tests functions for the parser)
+-- This makes sure the input is viable and already takes some work from the compiler
+-- by preprocessing things like variable handling so the compiler doesn't have to worry about it
+typeCheck :: DTypes -> PMat -> Either String ()
+typeCheck dts pmat = do
+
+    dtypeConReturnsType dts
+    dtypeConsUnique dts
+    dtypeTypesExist dts
+
+
+-- Make sure that each constructor returns the type it is supposed to construct
+dtypeConReturnsType :: DTypes -> Either String ()
+dtypeConReturnsType dts = foldr propagate (Right ()) [ (t, c, ts) | (t, cds) <- dts, (c, ts) <- cds]
+
+    where propagate (t', c', ts') (Right ()) = if t' == last ts'
+                                               then (Right ())
+                                               else (Left ("\n\n  Type read error: In type '" ++ t' ++ "', constructor '" ++ 
+                                                    prettyConstrDec (c', ts') ++ "' doesn't return type '" ++ t' ++ "'!\n"))
+
+          propagate _ (Left s) = (Left s)
+
+-- Make sure each constructor is unique among all data types
+dtypeConsUnique :: DTypes -> Either String ()
+dtypeConsUnique dts = 
+    case foldr propagate (Right "") (sort [ c | (_, cds) <- dts, (c, _) <- cds]) of
+
+        (Right x) -> (Right ())
+        (Left s)  -> (Left s)
           
+    where propagate :: String -> Either String String -> Either String String
+          propagate c' (Right s) = if c' == s
+                                   then (Left ("\n\n  Type read error: Multiple declaration of type '" ++ c' ++ "'!\n"))
+                                   else (Right c')
+          propagate _ (Left s) = (Left s)
+
+
+dtypeTypesExist :: DTypes -> Either String ()
+dtypeTypesExist dts = foldr propagate (Right ()) [ (t, et) | (et, cds) <- dts, (_, ts) <- cds, t <- ts]
+
+    where propagate (t', et') (Right ()) = if t' `elem` ts'
+                                    then (Right ())
+                                    else (Left ("\n\n  Type read error: In type '" ++ et' ++ "', type '" ++ t' ++ "' is not defined.\n"))
+          propagate _ (Left s) = (Left s)
+
+          ts' = [ t'' | (t'', _) <- dts]

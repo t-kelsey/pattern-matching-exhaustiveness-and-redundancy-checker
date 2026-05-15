@@ -17,15 +17,17 @@ main = do
 -- This is the main function of this project. The output is the combination of warnings 
 -- generated, semantic input checking, and of course the exhaustiveness check.
 warnings :: DTypes -> PMat -> String
-warnings dts p = case semanticTestsTextGen of
-        "" -> do
+warnings dts p = case typeCheck dts p of
+
+        (Right ()) -> do
             let header = "\n\n--- EXHAUSTIVENESS AND REDUNDANCY CHECKER OUTPUT ---"
             let footer = "\n\n----------------------------------------------------"
             -- here extensions such as overcomplicated cases
             -- ocCasesText = ocCasesTextGen
 
             header ++ isExTextGen ++ urTextGen ++ footer
-        errorText -> errorText
+
+        (Left errorText) -> errorText
 
     where 
           isExTextGen :: String
@@ -44,13 +46,6 @@ warnings dts p = case semanticTestsTextGen of
 
           casesForExTextGen :: String
           casesForExTextGen = "\n\n    Maybe you forgot this case: Not implemented yet"
-
-          semanticTestsTextGen :: String
-          semanticTestsTextGen = do
-            let d = if dtypeConReturnsType dts then "" else "\n\nEach constructor must returns the type it is supposed to construct!\
-                                                               \Check your data type definitions.\n\n"
-            -- other semantic tests, not implemented yet
-            d
 
 
 -- data Nat where

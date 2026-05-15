@@ -193,14 +193,6 @@ match' = ws *> match <* ws
 
 
 
--- Semantic tests functions for the parser 
-
--- Make sure that each constructor returns the type it is supposed to construct
-dtypeConReturnsType :: DTypes -> Bool
-dtypeConReturnsType dts = all (==True) [t == (last ts) | (t, cds) <- dts, (_, ts) <- cds]
-
-
-
 -- Displaying and testing functions
 
 -- pretty[...] is for displaying the parsed data type for debugging and testing
@@ -212,7 +204,12 @@ prettyDTypes :: DTypes -> String
 prettyDTypes xs = intercalate "\n\n" $ prettyDType <$> xs
 
 prettyDType :: DType -> String
-prettyDType xs = first xs ++ "\n  " ++ intercalate "\n  " (map (\x -> first x ++ " : " ++ intercalate " -> " (map prettyType (second x))) (second xs))
+prettyDType xs = first xs ++ "\n  " ++ intercalate "\n  " (map prettyConstrDec (second xs))
+  where first (x, _) = x
+        second (_, x) = x
+
+prettyConstrDec :: (Constructor, [Type]) -> String
+prettyConstrDec xs = first xs ++ " : " ++ intercalate " -> " (map prettyType (second xs))
   where first (x, _) = x
         second (_, x) = x
 

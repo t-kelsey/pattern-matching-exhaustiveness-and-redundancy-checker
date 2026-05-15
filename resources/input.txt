@@ -12,7 +12,7 @@ data List where
 
 data OneOfThose where
   nat  : Nat -> Nat -> List -> OneOfThose
-  list : List -> OneOfThose
+  list : Uno -> OneOfThose
   unit : Unit -> OneOfThose
 
 === pattern matrix ===

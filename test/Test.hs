@@ -7,6 +7,7 @@ import Test.Hspec
 import Test.QuickCheck
 import Control.Exception (evaluate)
 import Data.List (intercalate)
+import Data.Either (isLeft, isRight)
 
 
 main :: IO ()
@@ -97,11 +98,11 @@ main = hspec $ do
             -- Parser semantic tests
             it "Parser semantic: each constructor returns the type it is supposed to positive" $ do
                let dts = [("Fruit", [("apple", ["Fruit"]), ("citrus", ["Citrus", "Fruit"])])]
-               (dtypeConReturnsType dts) `shouldBe` True
+               (dtypeConReturnsType dts) `shouldSatisfy` isRight
 
             it "Parser semantic: each constructor returns the type it is supposed to negative" $ do
                let dts = [("Fruit", [("apple", ["Fruit"]), ("citrus", ["Citrus"])])]
-               (dtypeConReturnsType dts) `shouldBe` False
+               (dtypeConReturnsType dts) `shouldSatisfy` isLeft
 
             -- Useful clause tests: Individual function tests
             it "Useful clause: getSigma works correctly on edge cases" $ do
@@ -218,3 +219,11 @@ main = hspec $ do
                         [(PVar "x"),         (PVar "y")]]
                let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Pear"])])]
                (containsUselessRow dts p) `shouldBe` (Nothing)
+
+            it "Constructor multiple declaration" $ do
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])]), ("Vegetable", [("apple", ["Vegetable"])])]
+               (dtypeConsUnique dts) `shouldSatisfy` isLeft
+
+            it "Constructor multiple declaration" $ do
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])]), ("Vegetable", [("tomato", ["Vegetable"])])]
+               (dtypeConsUnique dts) `shouldSatisfy` isRight
