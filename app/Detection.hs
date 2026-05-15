@@ -46,9 +46,9 @@ containsUselessRow dts p = checkRows ((length p) - 1)
 typeCheck :: DTypes -> PMat -> Either String ()
 typeCheck dts pmat = do
 
-    dtypeConReturnsType dts
-    dtypeConsUnique dts
-    dtypeTypesExist dts
+    dtypeConReturnsType dts -- Each constructor should returns the type it is supposed to construct
+    dtypeTypesExist dts     -- Each data type used in a definition actually exists
+    dtypeNamesUnique dts    -- Each defined type and constructor name is unique
 
 
 -- Make sure that each constructor returns the type it is supposed to construct
@@ -62,21 +62,8 @@ dtypeConReturnsType dts = foldr propagate (Right ()) [ (t, c, ts) | (t, cds) <- 
 
           propagate _ (Left s) = (Left s)
 
--- Make sure each constructor is unique among all data types
-dtypeConsUnique :: DTypes -> Either String ()
-dtypeConsUnique dts = 
-    case foldr propagate (Right "") (sort [ c | (_, cds) <- dts, (c, _) <- cds]) of
 
-        (Right x) -> (Right ())
-        (Left s)  -> (Left s)
-          
-    where propagate :: String -> Either String String -> Either String String
-          propagate c' (Right s) = if c' == s
-                                   then (Left ("\n\n  Type read error: Multiple declaration of type '" ++ c' ++ "'!\n"))
-                                   else (Right c')
-          propagate _ (Left s) = (Left s)
-
-
+-- Make sure that each data type used in a definition actually exists
 dtypeTypesExist :: DTypes -> Either String ()
 dtypeTypesExist dts = foldr propagate (Right ()) [ (t, et) | (et, cds) <- dts, (_, ts) <- cds, t <- ts]
 
@@ -86,3 +73,20 @@ dtypeTypesExist dts = foldr propagate (Right ()) [ (t, et) | (et, cds) <- dts, (
           propagate _ (Left s) = (Left s)
 
           ts' = [ t'' | (t'', _) <- dts]
+
+
+-- Make sure no constructors or types have the same names
+dtypeNamesUnique :: DTypes -> Either String ()
+dtypeNamesUnique dts = 
+    case foldr propagate (Right "") conAndTypeNames of
+
+        (Right _) -> (Right ())
+        (Left s)  -> (Left s)
+          
+    where propagate :: String -> Either String String -> Either String String
+          propagate c' (Right s) = if c' == s
+                                   then (Left ("\n\n  Type read error: Multiple declaration of '" ++ c' ++ "'!\n"))
+                                   else (Right c')
+          propagate _ (Left s) = (Left s)
+
+          conAndTypeNames = sort ([ c | (_, cds) <- dts, (c, _) <- cds] ++ [ t | (t, _) <- dts])

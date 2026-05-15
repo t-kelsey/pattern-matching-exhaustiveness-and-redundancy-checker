@@ -8,7 +8,7 @@ main = do
     contents <- readFile "resources/input.txt"
     case runParserEnd match' contents of
 
-        []              -> error "\n\nParser Error: runParserEnd could not match test.txt. Check your syntax.\n"
+        []              -> putStrLn $ findParseError contents -- serror "\n\nParser Error: runParserEnd could not match test.txt. Check your syntax.\n"
         -- If the datatypes and pattern matrix  parse, run the warnings function on them
         ((dts, p, _):_) -> putStrLn (warnings dts p)
 
@@ -46,6 +46,10 @@ warnings dts p = case typeCheck dts p of
 
           casesForExTextGen :: String
           casesForExTextGen = "\n\n    Maybe you forgot this case: Not implemented yet"
+
+
+findParseError :: String -> String 
+findParseError contents = undefined
 
 
 -- data Nat where
