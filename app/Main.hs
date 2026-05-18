@@ -6,11 +6,18 @@ import Detection
 main :: IO ()
 main = do
     contents <- readFile "resources/input.txt"
-    case runParserEnd match' contents of
+    case findParseError contents of
 
-        []              -> putStrLn $ findParseError contents -- serror "\n\nParser Error: runParserEnd could not match test.txt. Check your syntax.\n"
-        -- If the datatypes and pattern matrix  parse, run the warnings function on them
-        ((dts, p, _):_) -> putStrLn (warnings dts p)
+        (Right ())  -> -- No parse errors detected
+            case runParserEnd match' contents of
+            
+            []      -> putStrLn "\n\n  Parse failure: Could not match test.txt. Check your syntax.\n"
+
+            -- If the datatypes and pattern matrix parse, run the warnings function on them
+            ((dts, p, _):_) -> putStrLn (warnings dts p)
+            
+
+        (Left errorText) -> putStrLn errorText
 
 
 
@@ -48,8 +55,12 @@ warnings dts p = case typeCheck dts p of
           casesForExTextGen = "\n\n    Maybe you forgot this case: Not implemented yet"
 
 
-findParseError :: String -> String 
-findParseError contents = undefined
+findParseError :: String -> Either String ()
+findParseError s = do
+
+    checkSectionHeaders s -- Ensure the dividers of the sections are correctly in place
+    checkDTypes s         -- Ensure no data types are malfomed 
+    checkPMat s
 
 
 -- data Nat where

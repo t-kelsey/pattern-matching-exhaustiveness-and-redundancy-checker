@@ -72,6 +72,12 @@ sepBy1 par sep = (:[]) <$> par
 sepBy0 :: Parser t a -> Parser t b -> Parser t [a]
 sepBy0 par sep = pure [] <|> sepBy1 par sep
 
+-- This function should take a Parser that functions as a separator, and a Parser that will always parse the given input.
+-- The function runs the given parser until the separator parser parses, then stops and return everything parsed before the sep.
+runUntilSep :: Parser t a -> Parser t b -> Parser t [a]
+runUntilSep par sep = ([] <$ sep) 
+                  <|> (:) <$> par <*> runUntilSep par sep
+
 lits :: (Eq t) => [t] -> Parser t [t]
 lits []     = pure []
 lits (t:ts) = pure (:) <*> lit t <*> lits ts
@@ -123,8 +129,12 @@ type VVec = [Type]
 
 -- Parses any amount of data types and their constructor declarations into a structure
 dtypes :: Parser Char DTypes
-dtypes = many1 dtype where
-  dtype = (,) <$> (lits "data" *> ws *> ttype) <* ws <* lits "where" <* ws <*> constrDeclarations <* ws
+dtypes = many1 dtype
+
+dtype :: Parser Char DType
+dtype = 
+    (,) <$> (lits "data" *> ws *> ttype) <* ws <* lits "where" <* ws 
+        <*> constrDeclarations <* ws
 
 -- Parses any amount of "f : a -> b -> c ..." type signatures into a list 
 constrDeclarations :: Parser Char [(String, [Type])]
@@ -192,6 +202,75 @@ match' :: Parser Char Match
 match' = ws *> match <* ws
 
 
+checkSectionHeaders :: String -> Either String ()
+checkSectionHeaders s = 
+  case runParserEnd sectionHeaders s of
+
+    [] -> (Left $ "\n\nParse failure: Sections could not be detected. Are they properly separated with '=== section name ==='?\n\n")
+
+    _:_  -> (Right ())
+
+
+checkDTypes :: String -> Either String ()
+checkDTypes s = 
+  case runParserEnd sectionHeaders s of
+
+    (dts, _, _):_ -> let dts' = splitOnData dts 
+                     in findDTypesErrs dts'
+
+    _ -> (Left "")
+
+splitOnData :: String -> [String]
+splitOnData s = tail $ sD [] s
+  where 
+    sD :: String -> String -> [String]
+    sD saved ('d':'a':'t':'a':xs) = saved : (sD [] xs)
+    sD saved [] = [saved]
+    sD saved (x:xs) = sD (saved ++ [x]) xs
+
+
+findDTypesErrs :: [String] -> Either String ()
+findDTypesErrs (x:xs) = 
+  case runParserEnd (ws *> dtype <* ws) ("data " ++ x) of
+    [] -> (Left $ "\n\nParse error in:\n\ndata" ++ x ++ "\n\n")
+    _ -> findDTypesErrs xs
+findDTypesErrs [] = (Right ())
+
+
+checkPMat :: String -> Either String ()
+checkPMat s =
+  case runParserEnd sectionHeaders s of
+
+    (_, p, _):_ -> case runParserEnd (satisfy isAlphaNum) p of
+
+      [] -> (Left $ "\n\nParse failure, non-allowed characters detected in:\n" ++ p ++ "\n\n")
+      _ -> case runParserEnd pmat p of
+
+        [] -> (Left $ "\n\nParse failure in:\n" ++ p ++ "\n\n")
+        _ -> (Right ())
+    
+    _ -> (Left "")
+
+checkType :: String -> Either String ()
+checkType s =
+  case runParserEnd sectionHeaders s of
+
+    (_, _, t):_ -> case runParserEnd ttype t of
+      [] -> (Left $ "\n\nParse failure in:\n" ++ t ++ "\n\n")
+      _ -> (Right ())
+    
+    _ -> (Left "")
+                          
+
+sectionHeaders :: Parser Char (String, String, String)
+sectionHeaders =
+   (,,)
+    <$> (ws *> lits "=== data types ===" *> ws *> anything <* ws)
+    <*> (ws *> lits "=== pattern matrix ===" *> ws *> anything <* ws)
+    <*> (ws *> lits "=== type ===" *> ws *> anything <* ws)
+
+anything :: Parser Char String
+anything = (many1 $ (satisfy (\x->True) <* ws))
 
 -- Displaying and testing functions
 

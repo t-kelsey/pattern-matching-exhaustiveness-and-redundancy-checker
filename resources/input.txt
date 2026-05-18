@@ -20,7 +20,7 @@ data OneOfThose where
       (list (cons zero nil))          x
             (unit x)                  x
 (nat x y z) v
-(nat zero x y) z
+(nat zero x y) !
 (list x) y
 
 === type ===
