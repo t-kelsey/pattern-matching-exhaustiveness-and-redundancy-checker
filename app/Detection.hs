@@ -51,10 +51,12 @@ typeCheck dts pmat = do
     dtypeNamesUnique dts    -- Each defined type and constructor name is unique
 
 
+
 -- Make sure that each constructor returns the type it is supposed to construct
 dtypeConReturnsType :: DTypes -> Either String ()
 dtypeConReturnsType dts = foldr propagate (Right ()) [ (t, c, ts) | (t, cds) <- dts, (c, ts) <- cds]
 
+    -- Propagate the intermediary result along the fold - The first error always gets passed to the end
     where propagate (t', c', ts') (Right ()) = if t' == last ts'
                                                then (Right ())
                                                else (Left ("\n\n  Type read error: In type '" ++ t' ++ "', constructor '" ++ 
@@ -89,4 +91,43 @@ dtypeNamesUnique dts =
                                    else (Right c')
           propagate _ (Left s) = (Left s)
 
+          -- A list containing the name of every con and type
           conAndTypeNames = sort ([ c | (_, cds) <- dts, (c, _) <- cds] ++ [ t | (t, _) <- dts])
+
+
+-- Make sure each constructor used in the pattern matrix actually exists
+pmatConsExist :: DTypes -> PMat -> Either String ()
+pmatConsExist dts pm = foldr propagate (Right ()) [ row | row <- pm]
+ 
+    where propagate row' (Right ()) = rowElemDTypes row'
+          propagate _ (Left s) = (Left s)
+
+          -- Here we pull apart each row into patterns, check each pattern recursively, and pass
+          -- the intermediary results of each pattern into the next pattern recursively. The individual
+          -- row results gets propagated then finally in the same way for a 3-layer-deep-fold
+
+          -- Base case
+          rowElemDTypes [] = (Right ())
+
+          -- Case 1: pattern is a constructor pattern
+          rowElemDTypes (pat@(PCon c cs):xs) = if c `elem` cons
+                                               then case rowElemDTypes cs of
+
+                                                      (Right ()) -> rowElemDTypes xs
+                                                      (Left s)   -> (Left s)
+
+                                               else (Left $ "\n\n Type read error: Constructor '" ++ c ++ "', in row\n" 
+                                                    ++ prettyPVec (pat:xs) ++ "\ndoes not exist in the given data types.")
+
+          -- Case 2: pattern is a variable
+          rowElemDTypes ((PVar _:xs)) = rowElemDTypes xs
+
+          -- Case 3: pattern is an or-pattern
+          rowElemDTypes ((POr x1 x2):xs) = case rowElemDTypes (x1:x2:[]) of
+                                             
+                                             (Right ()) -> rowElemDTypes xs
+                                             (Left s)   -> (Left s)
+
+
+          -- Each constructor defined in DTypes
+          cons = [ con | (et, cds) <- dts, (con, ts) <- cds]

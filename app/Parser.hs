@@ -97,6 +97,12 @@ ws1 = many1 (lit ' ' <|> lit '\n' <|> lit '\t' <|> lit '\r')
 ws' :: Parser Char [Char]
 ws' = many0 (lit ' ' <|> lit '\t')
 
+anything :: Parser Char String
+anything = many1 $ (satisfy (\_->True) <* ws)
+
+line :: Parser Char String
+line = many0 (satisfy (\x -> x /= '\n')) <* satisfy (== '\n')
+
 
 -- CODE FOR MATCH PARSER
 
@@ -145,7 +151,7 @@ constrDeclarations = sepBy1 constrDeclaration (ws' *> lit '\n' *> ws') where
 typeSignature :: Parser Char [Type] 
 typeSignature = sepBy1 ttype (ws *> lits "->" <* ws)
 
--- Parses a matrix of patterns [[Pattern]]. We don't need to check if it's of size n*m, as rules that are not the right size won't match
+-- Parses a matrix of patterns [[Pattern]]. We don't need to check if it's of size n*m, as type checking checks that
 -- Here the design decision is that single-length lowercase alphastrings are parsed as vars ("x"), while other strings are cons ("zero")
 pmat :: Parser Char PMat
 pmat = sepBy1 (many1 (p <* ws')) (many1 (lit '\n' <* ws))
@@ -188,7 +194,7 @@ constructor = string
 
 -- Parses a value vector, e.g.: "OneOfThose Nat", into a structure
 vvec :: Parser Char VVec
-vvec = sepBy1 ttype ws1
+vvec = ws *> sepBy1 ttype ws1 <* ws
 
 -- Parse the entire match structure
 match :: Parser Char Match
@@ -202,6 +208,9 @@ match' :: Parser Char Match
 match' = ws *> match <* ws
 
 
+-- Logic for gaining insight where parse errors are. Alternativly the parser could be
+-- redesigned to explicitly allow that, but that would be a large undertaking.
+
 checkSectionHeaders :: String -> Either String ()
 checkSectionHeaders s = 
   case runParserEnd sectionHeaders s of
@@ -210,7 +219,7 @@ checkSectionHeaders s =
 
     _:_  -> (Right ())
 
-
+-- In which data type does the error occur?
 checkDTypes :: String -> Either String ()
 checkDTypes s = 
   case runParserEnd sectionHeaders s of
@@ -220,6 +229,7 @@ checkDTypes s =
 
     _ -> (Left "")
 
+-- Helper function to split the datatypes into individual data types
 splitOnData :: String -> [String]
 splitOnData s = tail $ sD [] s
   where 
@@ -228,35 +238,51 @@ splitOnData s = tail $ sD [] s
     sD saved [] = [saved]
     sD saved (x:xs) = sD (saved ++ [x]) xs
 
-
 findDTypesErrs :: [String] -> Either String ()
 findDTypesErrs (x:xs) = 
   case runParserEnd (ws *> dtype <* ws) ("data " ++ x) of
-    [] -> (Left $ "\n\nParse error in:\n\ndata" ++ x ++ "\n\n")
+    [] -> (Left $ "\n\nParse error in data type:\n\ndata" ++ x ++ "\n\n")
     _ -> findDTypesErrs xs
 findDTypesErrs [] = (Right ())
 
 
+-- In which row of the pattern matrix does the error occur?
 checkPMat :: String -> Either String ()
 checkPMat s =
   case runParserEnd sectionHeaders s of
 
-    (_, p, _):_ -> case runParserEnd (satisfy isAlphaNum) p of
+    (_, pm, _):_ -> case runParserEnd (many1 line) (pm ++ "\n") of
 
-      [] -> (Left $ "\n\nParse failure, non-allowed characters detected in:\n" ++ p ++ "\n\n")
-      _ -> case runParserEnd pmat p of
+      [] -> (Left $ "Parse error in pmat, couldn't split lines:\n" ++ pm ++ "\n\n")
+      (x:_) -> findPMatErrs x
 
-        [] -> (Left $ "\n\nParse failure in:\n" ++ p ++ "\n\n")
-        _ -> (Right ())
-    
     _ -> (Left "")
 
-checkType :: String -> Either String ()
-checkType s =
+
+findPMatErrs :: [String] -> Either String ()
+findPMatErrs ([]:xs) = findPMatErrs xs
+findPMatErrs (x:xs) =
+  case runParserEnd (many1 $ ws' *> (satisfy (\c -> isAlphaNum c || c == '|' || c == '(' || c == ')')) <* ws') x of
+
+    [] -> (Left $ "\n\nParse failure, non-allowed characters detected in pmat at:\n" ++ x ++ "   <---- Here\n" ++ (safeHead xs) ++ "\n...\n\n")
+      where safeHead (y:_) = y
+            safeHead [] = ""
+    _ ->
+      case runParserEnd (many1 (ws' *> p <* ws')) x of
+
+        [] -> (Left $ "\n\nParse failure in pmat at:\n" ++ x ++ "^---- Here\n" ++ (head xs) ++ "\n...\n\n")
+        _  -> findPMatErrs xs
+
+findPMatErrs [] = (Right ())
+
+
+-- Does the error occur in the value vector at the end?
+checkVVec :: String -> Either String ()
+checkVVec s =
   case runParserEnd sectionHeaders s of
 
-    (_, _, t):_ -> case runParserEnd ttype t of
-      [] -> (Left $ "\n\nParse failure in:\n" ++ t ++ "\n\n")
+    (_, _, t):_ -> case runParserEnd vvec t of
+      [] -> (Left $ "\n\nParse failure in value vector:\n" ++ t ++ "\n\n")
       _ -> (Right ())
     
     _ -> (Left "")
@@ -269,8 +295,6 @@ sectionHeaders =
     <*> (ws *> lits "=== pattern matrix ===" *> ws *> anything <* ws)
     <*> (ws *> lits "=== type ===" *> ws *> anything <* ws)
 
-anything :: Parser Char String
-anything = (many1 $ (satisfy (\x->True) <* ws))
 
 -- Displaying and testing functions
 

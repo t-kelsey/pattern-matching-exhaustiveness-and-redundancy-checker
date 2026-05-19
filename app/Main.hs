@@ -14,7 +14,7 @@ main = do
             []      -> putStrLn "\n\n  Parse failure: Could not match test.txt. Check your syntax.\n"
 
             -- If the datatypes and pattern matrix parse, run the warnings function on them
-            ((dts, p, _):_) -> putStrLn (warnings dts p)
+            ((dts, pm, _):_) -> putStrLn (warnings dts pm)
             
 
         (Left errorText) -> putStrLn errorText
@@ -24,7 +24,7 @@ main = do
 -- This is the main function of this project. The output is the combination of warnings 
 -- generated, semantic input checking, and of course the exhaustiveness check.
 warnings :: DTypes -> PMat -> String
-warnings dts p = case typeCheck dts p of
+warnings dts pm = case typeCheck dts pm of
 
         (Right ()) -> do
             let header = "\n\n--- EXHAUSTIVENESS AND REDUNDANCY CHECKER OUTPUT ---"
@@ -39,14 +39,14 @@ warnings dts p = case typeCheck dts p of
     where 
           isExTextGen :: String
           isExTextGen =
-            case p `isExhaustiveUnder` dts of
+            case pm `isExhaustiveUnder` dts of
 
                 True -> "\n\n    Success: Cases are exhaustive"
                 False -> "\n\n    Failure: Cases are not exhaustive" ++ casesForExTextGen
 
           urTextGen :: String
           urTextGen =
-            case containsUselessRow dts p of
+            case containsUselessRow dts pm of
 
                 (Just pv) -> "\n\n    '" ++ prettyPVec pv ++ "'\n    ^ This case in the pattern matrix is redundant"
                 Nothing -> ""
@@ -60,7 +60,8 @@ findParseError s = do
 
     checkSectionHeaders s -- Ensure the dividers of the sections are correctly in place
     checkDTypes s         -- Ensure no data types are malfomed 
-    checkPMat s
+    checkPMat s           -- Ensure the pattern matrix is not malformed
+    checkVVec s           -- Ensure the types (values) given aren't malformed
 
 
 -- data Nat where
