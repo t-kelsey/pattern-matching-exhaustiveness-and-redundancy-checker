@@ -105,12 +105,18 @@ getSigma xs = nub $ getCons xs
                   (POr r1 r2) -> (getCons [[r1], [r2]]) ++ (getCons xs)
                   _ -> getCons xs
 
+
+-- Given a constructor, get it's arguments from the data type defs.
+getArgsFromCon :: Constructor -> DTypes -> [Type]
+getArgsFromCon c dts = 
+    
+    case [ ts | (_, cds) <- dts, (c', ts) <- cds, c == c' ] of
+         (ts':_) -> ts'
+         []      -> error $ "\n\n  Type read error: Constructor '" ++ c ++ "' seems to be malformed.\n\n"
+
 -- Get the arity of a constructor based on the data type definitions given
 getArity :: Constructor -> DTypes -> Int
-getArity c dts = 
-    case [ ts | (_, cds) <- dts, (c', ts) <- cds, c == c' ] of
-        (ts: _)-> length ts - 1 -- The last Type is the return type and not part of the arguments
-        [] -> error $ "\n\nConstructor " ++ show c ++ " not found in data type definitions given:\n\n" ++ prettyDTypes dts ++ "\n"
+getArity = (-1) . length .  getArgsFromCon
 
 -- Get the type a constructor belongs to
 getTypeFromCon :: Constructor -> DTypes -> Type
@@ -118,6 +124,19 @@ getTypeFromCon c dts =
     case [ t | (t, cds) <- dts, c `elem` fmap (\(c',_) -> c') cds ] of
         (t:_) -> t
         []    -> error $ "\n\nConstructor " ++ show c ++ " not found in data type definitions given:\n\n" ++ prettyDTypes dts ++ "\n"
+
+-- Get the return type of a constructor
+getReturnTypeFromCon :: Constructor -> DTypes -> Type
+getReturnTypeFromCon c dts = last $ getArgsFromCon c dts
+
+-- Get the type of a pattern, if possible. Here it suffices to look until we find a constructor, as every pattern in a column
+-- has to have the same type. (POr zero nil) is not legal, because zero -> Nat /= nil -> List
+getTypeFromPattern :: Pattern -> DTypes -> Maybe Type
+getTypeFromPattern (PCon c cs) dts = (Just $ getReturnTypeFromCon c dts)
+getTypeFromPattern (PVar _) _ = Nothing
+getTypeFromPattern (POr p1 p2) dts = case getTypeFromPattern p1 dts of
+                                    (Just t) -> (Just t)
+                                    Nothing  -> getTypeFromPattern p2 dts
 
 
 -- Decides if sigma (set of constructers in first column) is complete within their data type

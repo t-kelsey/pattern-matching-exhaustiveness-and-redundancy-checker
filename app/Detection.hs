@@ -46,9 +46,11 @@ containsUselessRow dts p = checkRows ((length p) - 1)
 typeCheck :: DTypes -> PMat -> Either String ()
 typeCheck dts pmat = do
 
-    dtypeConReturnsType dts -- Each constructor should returns the type it is supposed to construct
-    dtypeTypesExist dts     -- Each data type used in a definition actually exists
-    dtypeNamesUnique dts    -- Each defined type and constructor name is unique
+    dtypeConReturnsType dts     -- Each constructor should returns the type it is supposed to construct
+    dtypeTypesExist dts         -- Each data type used in a definition actually exists
+    dtypeNamesUnique dts        -- Each defined type and constructor name is unique
+    pmatConsExist dts pmat      -- Each type used in the pattern matrix is defined
+    pmatIsCorrectSize pmat      -- Ensure matrix if of width n, no row is longer or shorter
 
 
 
@@ -97,9 +99,9 @@ dtypeNamesUnique dts =
 
 -- Make sure each constructor used in the pattern matrix actually exists
 pmatConsExist :: DTypes -> PMat -> Either String ()
-pmatConsExist dts pm = foldr propagate (Right ()) [ row | row <- pm]
+pmatConsExist dts pm = foldr propagate (Right ()) pm
  
-    where propagate row' (Right ()) = rowElemDTypes row'
+    where propagate row (Right ()) = rowElemDTypes row
           propagate _ (Left s) = (Left s)
 
           -- Here we pull apart each row into patterns, check each pattern recursively, and pass
@@ -116,8 +118,8 @@ pmatConsExist dts pm = foldr propagate (Right ()) [ row | row <- pm]
                                                       (Right ()) -> rowElemDTypes xs
                                                       (Left s)   -> (Left s)
 
-                                               else (Left $ "\n\n Type read error: Constructor '" ++ c ++ "', in row\n" 
-                                                    ++ prettyPVec (pat:xs) ++ "\ndoes not exist in the given data types.")
+                                               else (Left $ "\n\n Type read error: Constructor '" ++ c ++ "', in \n\n'" 
+                                                    ++ prettyPVec (pat:xs) ++ "'\n\ndoes not exist in the given data types.\n\n")
 
           -- Case 2: pattern is a variable
           rowElemDTypes ((PVar _:xs)) = rowElemDTypes xs
@@ -131,3 +133,54 @@ pmatConsExist dts pm = foldr propagate (Right ()) [ row | row <- pm]
 
           -- Each constructor defined in DTypes
           cons = [ con | (et, cds) <- dts, (con, ts) <- cds]
+
+-- Make sure that the pattern matrix is of shape n * m
+pmatIsCorrectSize :: PMat -> Either String ()
+pmatIsCorrectSize (r1:pm) = foldr propagate (Right ()) pm 
+
+    where propagate row' (Right ()) = if length row' == n
+                                      then (Right ())
+                                      else (Left $ "\n\n  Type read error:\n\n  Row '" ++ prettyPVec row' 
+                                           ++ "'\n\n  Has length " ++ show (length row') ++ ", yet pattern matrix is of width " ++ show n ++ ".\n\n")
+
+          propagate _ (Left s) = (Left s)
+
+          n = length r1 
+
+-- Make sure that each constructor used in the pattern matrix has the correct number of arguments applied
+pmatConsHaveCorrectArity :: DTypes -> PMat -> Either String ()
+pmatConsHaveCorrectArity dts pm = foldr propagate (Right ()) pm
+
+    where propagate row (Right ()) = rowArity row
+          propagate _ (Left s) = (Left s)
+
+          -- Pull apart each row into it's patterns, then each pattern into it's non-recursive parts
+          -- Check for each pattern then the arity if it's a constructor
+
+          -- Base case
+          rowArity [] = (Right ())
+          
+          -- Case 1: pattern is a constructor pattern
+          rowArity (pat@(PCon c cs):xs) = 
+            
+            if getArity c + 1 == length cs
+
+                then rowArity xs
+
+                else 
+                    case getArity c + 1 > length cs of
+
+                        True -> (Left $ "\n\n  Type read error: Constructor '" ++ show c ++ "' in \n\n  '" 
+                                ++ prettyPVec (pat:xs) ++ "'\n\nhas to few arguments.\n\nExpected:  " 
+                                ++ prettyConstrDec (c, getArgsFromCon dts c) ++ "\nActual:  " ++ prettyConstrDec (c, getTypeFromPattern <$> cs) ++ "\n\n")
+
+                        False -> (Left $ "")
+
+          -- Case 2: pattern is a variable
+          rowArity ((PVar _):xs) = rowArity xs
+
+          -- Case 3: pattern is an or-pattern
+          rowArity ((POr p1 p2):xs) = case rowArity (p1:p1:[]) of
+
+                                        (Right ()) -> rowArity xs
+                                        (Left s)   -> (Left s)

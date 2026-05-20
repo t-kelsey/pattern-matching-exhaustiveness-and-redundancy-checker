@@ -324,7 +324,7 @@ prettyPMat xs = (intercalate "\n") $ (intercalate " ") <$> ((fmap . fmap) pretty
 
 prettyP :: Pattern -> String
 prettyP (PVar x) = x
-prettyP (POr x y) = prettyP x ++ " | " ++ prettyP y
+prettyP (POr x y) = "(" ++ prettyP x ++ " | " ++ prettyP y ++ ")"
 prettyP (PCon x []) = x
 prettyP (PCon x xs) = "(" ++ intercalate " " (x : (prettyP <$> xs)) ++ ")"
 
