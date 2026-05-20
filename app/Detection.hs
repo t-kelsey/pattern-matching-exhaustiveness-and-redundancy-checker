@@ -46,11 +46,12 @@ containsUselessRow dts p = checkRows ((length p) - 1)
 typeCheck :: DTypes -> PMat -> Either String ()
 typeCheck dts pmat = do
 
-    dtypeConReturnsType dts     -- Each constructor should returns the type it is supposed to construct
-    dtypeTypesExist dts         -- Each data type used in a definition actually exists
-    dtypeNamesUnique dts        -- Each defined type and constructor name is unique
-    pmatConsExist dts pmat      -- Each type used in the pattern matrix is defined
-    pmatIsCorrectSize pmat      -- Ensure matrix if of width n, no row is longer or shorter
+    dtypeConReturnsType dts           -- Each constructor should returns the type it is supposed to construct
+    dtypeTypesExist dts               -- Each data type used in a definition actually exists
+    dtypeNamesUnique dts              -- Each defined type and constructor name is unique
+    pmatConsExist dts pmat            -- Each type used in the pattern matrix is defined
+    pmatIsCorrectSize pmat            -- Ensure matrix if of width n, no row is longer or shorter
+    pmatConsHaveCorrectArity dts pmat -- Ensure that each constructor used in the pattern matrix has the correct number of arguments applied
 
 
 
@@ -163,18 +164,22 @@ pmatConsHaveCorrectArity dts pm = foldr propagate (Right ()) pm
           -- Case 1: pattern is a constructor pattern
           rowArity (pat@(PCon c cs):xs) = 
             
-            if getArity c + 1 == length cs
+            if getArity dts c == length cs
 
                 then rowArity xs
 
                 else 
-                    case getArity c + 1 > length cs of
+                    case getArity dts c > length cs of
 
                         True -> (Left $ "\n\n  Type read error: Constructor '" ++ show c ++ "' in \n\n  '" 
-                                ++ prettyPVec (pat:xs) ++ "'\n\nhas to few arguments.\n\nExpected:  " 
-                                ++ prettyConstrDec (c, getArgsFromCon dts c) ++ "\nActual:  " ++ prettyConstrDec (c, getTypeFromPattern <$> cs) ++ "\n\n")
+                                ++ prettyPVec (pat:xs) ++ "'\n\n  has to few arguments.\n\nExpected:  " 
+                                ++ prettyConstrDec (c, getArgsFromCon dts c) ++ "\nActual:    " 
+                                ++ prettyConstrDec (c, ((getTypeFromPattern' dts) <$> cs) ++ [getReturnTypeFromCon dts c]) ++ "\n\n")
 
-                        False -> (Left $ "")
+                        False -> (Left $ "\n\n  Type read error: Constructor '" ++ show c ++ "' in \n\n  '" 
+                                ++ prettyPVec (pat:xs) ++ "'\n\n  has to many arguments.\n\nExpected:  " 
+                                ++ prettyConstrDec (c, getArgsFromCon dts c) ++ "\nActual:    " 
+                                ++ prettyConstrDec (c, ((getTypeFromPattern' dts) <$> cs) ++ [getReturnTypeFromCon dts c]) ++ "\n\n")
 
           -- Case 2: pattern is a variable
           rowArity ((PVar _):xs) = rowArity xs
@@ -184,3 +189,7 @@ pmatConsHaveCorrectArity dts pm = foldr propagate (Right ()) pm
 
                                         (Right ()) -> rowArity xs
                                         (Left s)   -> (Left s)
+
+          getTypeFromPattern' dts c' = case getTypeFromPattern dts c' of
+                                            (Just t) -> t
+                                            Nothing  -> "?"

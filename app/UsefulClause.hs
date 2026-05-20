@@ -28,11 +28,11 @@ useful dts p q@((PCon c rs): qs) = useful dts (specializedP c (length rs) p) spe
 
 -- 2. Case wildcard _:
 useful dts p q@(v@(PVar var): qs) = let s = getSigma p 
-                              in case isComplete s dts of 
+                              in case isComplete dts s of 
 
                                 -- 2.(a) Case wildcard and sigma is complete: U(P, q) <-> \Or_{k=1}^z useful(S(c_k, P), S(c_k, q))
-                                True -> or [useful dts (specializedP c_k (getArity c_k dts) p) (specV c_k) | c_k <- s]
-                                    where specV c_k = case specializedV c_k (getArity c_k dts) q of
+                                True -> or [useful dts (specializedP c_k (getArity dts c_k) p) (specV c_k) | c_k <- s]
+                                    where specV c_k = case specializedV c_k (getArity dts c_k) q of
                                                     (Just sV) -> sV
                                                     Nothing -> error "This case isn't possible"
 
@@ -107,44 +107,44 @@ getSigma xs = nub $ getCons xs
 
 
 -- Given a constructor, get it's arguments from the data type defs.
-getArgsFromCon :: Constructor -> DTypes -> [Type]
-getArgsFromCon c dts = 
+getArgsFromCon :: DTypes -> Constructor -> [Type]
+getArgsFromCon dts c = 
     
     case [ ts | (_, cds) <- dts, (c', ts) <- cds, c == c' ] of
          (ts':_) -> ts'
          []      -> error $ "\n\n  Type read error: Constructor '" ++ c ++ "' seems to be malformed.\n\n"
 
 -- Get the arity of a constructor based on the data type definitions given
-getArity :: Constructor -> DTypes -> Int
-getArity = (-1) . length .  getArgsFromCon
+getArity :: DTypes -> Constructor ->  Int
+getArity dts c = (subtract 1) . length $ getArgsFromCon dts c
 
 -- Get the type a constructor belongs to
-getTypeFromCon :: Constructor -> DTypes -> Type
-getTypeFromCon c dts = 
+getTypeFromCon :: DTypes -> Constructor -> Type
+getTypeFromCon dts c = 
     case [ t | (t, cds) <- dts, c `elem` fmap (\(c',_) -> c') cds ] of
         (t:_) -> t
         []    -> error $ "\n\nConstructor " ++ show c ++ " not found in data type definitions given:\n\n" ++ prettyDTypes dts ++ "\n"
 
 -- Get the return type of a constructor
-getReturnTypeFromCon :: Constructor -> DTypes -> Type
+getReturnTypeFromCon :: DTypes -> Constructor -> Type
 getReturnTypeFromCon c dts = last $ getArgsFromCon c dts
 
 -- Get the type of a pattern, if possible. Here it suffices to look until we find a constructor, as every pattern in a column
 -- has to have the same type. (POr zero nil) is not legal, because zero -> Nat /= nil -> List
-getTypeFromPattern :: Pattern -> DTypes -> Maybe Type
-getTypeFromPattern (PCon c cs) dts = (Just $ getReturnTypeFromCon c dts)
-getTypeFromPattern (PVar _) _ = Nothing
-getTypeFromPattern (POr p1 p2) dts = case getTypeFromPattern p1 dts of
+getTypeFromPattern :: DTypes -> Pattern -> Maybe Type
+getTypeFromPattern dts (PCon c cs) = (Just $ getReturnTypeFromCon dts c)
+getTypeFromPattern _ (PVar _) = Nothing
+getTypeFromPattern dts (POr p1 p2) = case getTypeFromPattern dts p1 of
                                     (Just t) -> (Just t)
-                                    Nothing  -> getTypeFromPattern p2 dts
+                                    Nothing  -> getTypeFromPattern dts p2
 
 
 -- Decides if sigma (set of constructers in first column) is complete within their data type
 -- If the first column only has wildcards then obviously sigma is not complete
-isComplete :: [Constructor] -> DTypes -> Bool
-isComplete [] _ = False
-isComplete cs@(c:_) dts = 
-    case [ first <$> cds | (t, cds) <- dts, t == getTypeFromCon c dts] of
+isComplete :: DTypes -> [Constructor] -> Bool
+isComplete dts [] = False
+isComplete dts cs@(c:_) = 
+    case [ first <$> cds | (t, cds) <- dts, t == getTypeFromCon dts c] of
         (cs': _) -> areSetsEqual cs cs'
         _ -> False
     where first (x, _) = x
