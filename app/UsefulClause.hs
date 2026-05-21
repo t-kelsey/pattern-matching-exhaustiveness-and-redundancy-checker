@@ -32,6 +32,7 @@ useful dts p q@(v@(PVar var): qs) = let s = getSigma p
 
                                 -- 2.(a) Case wildcard and sigma is complete: U(P, q) <-> \Or_{k=1}^z useful(S(c_k, P), S(c_k, q))
                                 True -> or [useful dts (specializedP c_k (getArity dts c_k) p) (specV c_k) | c_k <- s]
+                                
                                     where specV c_k = case specializedV c_k (getArity dts c_k) q of
                                                     (Just sV) -> sV
                                                     Nothing -> error "This case isn't possible"

@@ -2,7 +2,7 @@ module Detection where
 
 import UsefulClause
 import Parser
-import Data.List (sort)
+import Data.List (sort, transpose)
 
 
 -- Check is a pattern matrix is exhaustive under defined data types
@@ -46,12 +46,13 @@ containsUselessRow dts p = checkRows ((length p) - 1)
 typeCheck :: DTypes -> PMat -> Either String ()
 typeCheck dts pmat = do
 
-    dtypeConReturnsType dts           -- Each constructor should returns the type it is supposed to construct
-    dtypeTypesExist dts               -- Each data type used in a definition actually exists
-    dtypeNamesUnique dts              -- Each defined type and constructor name is unique
-    pmatConsExist dts pmat            -- Each type used in the pattern matrix is defined
-    pmatIsCorrectSize pmat            -- Ensure matrix if of width n, no row is longer or shorter
-    pmatConsHaveCorrectArity dts pmat -- Ensure that each constructor used in the pattern matrix has the correct number of arguments applied
+    dtypeConReturnsType dts             -- Each constructor should returns the type it is supposed to construct
+    dtypeTypesExist dts                 -- Each data type used in a definition actually exists
+    dtypeNamesUnique dts                -- Each defined type and constructor name is unique
+    pmatConsExist dts pmat              -- Each type used in the pattern matrix is defined
+    pmatIsCorrectSize pmat              -- Ensure matrix if of width n, no row is longer or shorter
+    pmatConsHaveCorrectArity dts pmat   -- Ensure that each constructor used in the pattern matrix has the correct number of arguments applied
+    pmatPatternsAreOfRightType dts pmat -- Ensure each pattern in a column is of the same type as the column
 
 
 
@@ -190,6 +191,71 @@ pmatConsHaveCorrectArity dts pm = foldr propagate (Right ()) pm
                                         (Right ()) -> rowArity xs
                                         (Left s)   -> (Left s)
 
-          getTypeFromPattern' dts c' = case getTypeFromPattern dts c' of
+
+-- Ensure each pattern in a column is of the same type as the column
+pmatPatternsAreOfRightType :: DTypes -> PMat -> Either String ()
+pmatPatternsAreOfRightType dts pmat@(r1:pm) = foldr propagate (Right ()) pm
+
+    where propagate ri (Right ()) = compareRow r1 ri (getColumnBindings dts pmat) ri
+          propagate _   (Left s)   = (Left s)
+
+          -- We check the binding of the first row, then compare that binding to each individual row
+          compareRow []       _        _        _       = (Right ())
+          -- r1: first row, ri: current compare row, cbs: column bindings. Need r1 for error message only
+          compareRow (p1:r1') (pi:ri') (cb1:cbs) fullri = 
+            
+            if case (getTypeFromPattern dts pi) of
+                
+                -- If the current pattern can be bound, compare it to the column type
+                (Just t) -> (Just t) == cb1
+
+                -- If it can't be bound, it's a variable (or Or-Pattern with only vars) and such is of the right type
+                Nothing  -> True
+                                           
+            then compareRow r1' ri' cbs fullri
+                                           
+            else (Left $ "\n\n  Type read error: Pattern '" ++ prettyP pi ++ "', in \n  '" 
+                                ++ prettyPVec (fullri) ++ "', is of wrong type.\n\n" 
+                                ++ "  Actual:    '" ++ prettyPT pi ++ prettyIndirectBind p1 cb1 cbs ++ "\n\n" )
+
+        
+          -- Better error messages
+          prettyIndirectBind p1' cb1' cbs' = 
+            case (getTypeFromPattern dts p1') == cb1' of
+                True -> "'\n  Expected:    '" 
+                                ++ prettyTypeMaybe cb1' ++ "',  bound at:  '"
+                                ++ prettyP p1' ++ " :: " ++ prettyTypeMaybe cb1' ++ "'\n  In the first row of the pattern matrix:\n  '" 
+                                ++ prettyPVec (r1) ++ "'\n"
+
+                False -> "'\n Expected:    '"
+                                ++ prettyTypeMaybe cb1' ++ "', bound at:  '"
+                                ++ prettyP (head (dropWhile (\x -> getTypeFromPattern' dts x == "?") ((transpose pmat) !! ((length (head pmat) - length cbs') - 1))))
+                                ++ "'\n"
+
+          prettyPT p = prettyType (getTypeFromPattern' dts p)
+
+          prettyTypeMaybe (Just t) = t
+          prettyTypeMaybe (Nothing) = "?"
+
+
+
+-- Get the binding of each column
+getColumnBindings :: DTypes -> PMat -> [Maybe Type]
+getColumnBindings dts pm = getColumnBinding <$> transpose pm -- Transposed so it goes column by column, not row by row
+    
+
+    where getColumnBinding [] = Nothing
+          getColumnBinding (p1:ci) =
+
+            case getTypeFromPattern dts p1 of
+
+                (Just t) -> (Just t) -- If the first pattern is bindable, return it
+                Nothing  -> getColumnBinding ci -- If not, move a row down
+
+
+-- Turn the 'maybe' into a type, which has an implicit show instance
+getTypeFromPattern' :: DTypes -> Pattern -> Type
+getTypeFromPattern' dts p = case getTypeFromPattern dts p of
                                             (Just t) -> t
                                             Nothing  -> "?"
+                                        
