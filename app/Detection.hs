@@ -53,7 +53,7 @@ typeCheck dts pmat = do
     pmatIsCorrectSize pmat              -- Ensure matrix if of width n, no row is longer or shorter
     pmatConsHaveCorrectArity dts pmat   -- Ensure that each constructor used in the pattern matrix has the correct number of arguments applied
     pmatPatternsAreOfRightType dts pmat -- Ensure each pattern in a column is of the same type as the column
-
+    pmatVarsUnique pmat                 -- Ensure each variable used is either unique or is in the same level of an or-pattern
 
 
 -- Make sure that each constructor returns the type it is supposed to construct
@@ -258,4 +258,9 @@ getTypeFromPattern' :: DTypes -> Pattern -> Type
 getTypeFromPattern' dts p = case getTypeFromPattern dts p of
                                             (Just t) -> t
                                             Nothing  -> "?"
+
+
+-- Ensure each variable used is either unique or is in the same level of an or-pattern
+pmatVarsUnique :: PMat -> Either String ()
+pmatVarsUnique = undefined
                                         

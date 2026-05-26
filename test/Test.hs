@@ -31,7 +31,7 @@ main = hspec $ do
                                         \(list (cons zero nil))          x\n\
                                         \(unit x)                  x" of
                   []    -> error "\n\nParse failed.\n"
-                  (x:_) -> (prettyPMat x) `shouldBe` "(nat x zero y) | (nat zero zero nil) x\n(list (cons zero nil)) x\n(unit x) x"
+                  (x:_) -> (prettyPMat x) `shouldBe` "((nat x zero y) | (nat zero zero nil)) x\n(list (cons zero nil)) x\n(unit x) x"
 
             it "Parser: type to be matched is correctly parsed" $ do
                case runParserEnd vvec "OneOfThose Nat" of
@@ -141,38 +141,6 @@ main = hspec $ do
                   []    -> error "\n\nParse failed.\n"
                   ((dts, p, _):_) -> ([(PCon "nat" [(PCon "zero" []), (PCon "x" []), (PVar "nil")]), (PVar "x")] `isUsefulTo` p $ dts) `shouldBe` True
 
-            it "Useful clause: Bound variables same type positive example" $ do
-               let p = [[(PVar "x"),  (PVar "x")],
-                        [(PVar "x"),         (PCon "apple" [])],
-                        [(PCon "orange" []), (PVar "x")]]
-               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])])]
-               let v = [(PCon "apple" []), (PCon "orange" [])]
-               (v `isUsefulTo` p $ dts) `shouldBe` True
-
-            it "Useful clause: Bound variables same type negative example" $ do
-               let p = [[(PVar "x"),  (PVar "y")],
-                        [(PVar "x"),         (PCon "apple" [])],
-                        [(PCon "orange" []), (PVar "x")]]
-               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])])]
-               let v = [(PCon "apple" []), (PCon "orange" [])]
-               (v `isUsefulTo` p $ dts) `shouldBe` False
-
-            it "Useful clause: Bound variables nested positive example" $ do
-               let p = [[(PCon "succ" [(PVar "y")]),  (PVar "y")],
-                        [(PVar "x"),         (PCon "apple" [])],
-                        [(PCon "zero" []), (PVar "x")]]
-               let dts = [("Nat", [("zero", ["Nat"]), ("succ", ["Nat", "Nat"])]), ("Fruit", [("apple", ["Fruit"])])]
-               let v = [(PCon "succ" [(PCon "zero" [])]), (PCon "zero" [])]
-               (v `isUsefulTo` p $ dts) `shouldBe` True
-
-            it "Useful clause: Bound variables nested negative example" $ do
-               let p = [[(PCon "succ" [(PVar "y")]),  (PVar "y")],
-                        [(PVar "x"),         (PCon "apple" [])],
-                        [(PCon "zero" []), (PVar "x")]]
-               let dts = [("Nat", [("zero", ["Nat"]), ("succ", ["Nat", "Nat"])]), ("Fruit", [("apple", ["Fruit"])])]
-               let v = [(PCon "succ" [(PCon "zero" [])]), (PCon "orange" [])]
-               (v `isUsefulTo` p $ dts) `shouldBe` False
-
             it "Detection: exhaustive function general test negative example" $ do
                contents <- readFile "resources/test.txt"
                case runParserEnd match' contents of
@@ -220,10 +188,38 @@ main = hspec $ do
                let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Pear"])])]
                (containsUselessRow dts p) `shouldBe` (Nothing)
 
-            it "Constructor multiple declaration" $ do
+            it "Type checking: Constructor multiple declaration" $ do
                let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])]), ("Vegetable", [("apple", ["Vegetable"])])]
-               (dtypeConsUnique dts) `shouldSatisfy` isLeft
+               (dtypeNamesUnique dts) `shouldSatisfy` isLeft
 
-            it "Constructor multiple declaration" $ do
+            it "Type checking: Constructor multiple declaration" $ do
                let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])]), ("Vegetable", [("tomato", ["Vegetable"])])]
-               (dtypeConsUnique dts) `shouldSatisfy` isRight
+               (dtypeNamesUnique dts) `shouldSatisfy` isRight
+
+            it "Type checking: Bound variables multiple declaration positive" $ do
+               let p = [[(PVar "nat"),  (POr (PVar "x") (PCon "orange" [(PVar "x")]))]]
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit", "Fruit"])])]
+               let v = [(PCon "apple" []), (PCon "orange" [])]
+               (pmatVarsUnique p) `shouldSatisfy` isLeft
+
+            it "Type checking: Bound variables multiple declaration negative" $ do
+               let p = [[(PVar "x"),  (POr (PVar "y") (PVar "x"))]]
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"])])]
+               let v = [(PCon "apple" []), (PCon "orange" [])]
+               (pmatVarsUnique p) `shouldSatisfy` isRight
+
+            it "Type checking: Bound variables multiple declaration positive" $ do
+               let p = [[(PCon "succ" [(PVar "y")]),  (PVar "y")],
+                        [(PVar "x"),         (PCon "apple" [])],
+                        [(PCon "zero" []), (PVar "x")]]
+               let dts = [("Nat", [("zero", ["Nat"]), ("succ", ["Nat", "Nat"])]), ("Fruit", [("apple", ["Fruit"])])]
+               let v = [(PCon "succ" [(PCon "zero" [])]), (PCon "zero" [])]
+               (pmatVarsUnique p) `shouldSatisfy` isLeft
+
+            it "Type checking: Bound variables multiple declaration negative" $ do
+               let p = [[(PCon "succ" [(PVar "y")]),  (PVar "y")],
+                        [(PVar "x"),         (PCon "apple" [])],
+                        [(PCon "zero" []), (PVar "x")]]
+               let dts = [("Nat", [("zero", ["Nat"]), ("succ", ["Nat", "Nat"])]), ("Fruit", [("apple", ["Fruit"])])]
+               let v = [(PCon "succ" [(PCon "zero" [])]), (PCon "orange" [])]
+               (pmatVarsUnique p) `shouldSatisfy` isLeft
