@@ -2,7 +2,8 @@ module Detection where
 
 import UsefulClause
 import Parser
-import Data.List (sort, transpose)
+import Data.List (sort, transpose, nub, (\\))
+import Control.Applicative (liftA2)
 
 
 -- Check is a pattern matrix is exhaustive under defined data types
@@ -261,6 +262,70 @@ getTypeFromPattern' dts p = case getTypeFromPattern dts p of
 
 
 -- Ensure each variable used is either unique or is in the same level of an or-pattern
+-- Here we have to define our method ourself, as I could not find literature that does
+
+-- First, we define that variables in the patterns of a pattern matrix P must fulfill a uniqueness property.
+
 pmatVarsUnique :: PMat -> Either String ()
-pmatVarsUnique = undefined
+pmatVarsUnique pm = foldr propagate (Right ()) pm
+
+    where propagate ri (Right ()) = do
+
+                let vars = getVars ri
+                checkUnique vars ri       -- Check if the final possibilities all have unique vars
+                checkBranches vars ri     -- Check if the final possibilities all have the same vars
+
+          propagate _  (Left s)   = (Left s)
+
+          getVars :: [Pattern] -> [[Pattern]]
+
+          -- Let's define variables as v_i, and patterns as p_i 
+
+          -- The most important step is the recursive reduction function R, 
+          -- which holds for unique(p_1) == unique(p_2) iff unique(R(p_1)) == unique(R(p_2))
+
+          -- R is defined as:   R(c(r_1,...,r_a)) ~= R(r_1) ... R(r_a)
+          --                    R(v)              ~= v
+          --                    R( r_1 | r_2 )    ~= ( R(r_1) | R(r_2) )   R does not have the power to solve the or itself 
+
+          -- Now, getVars is an extension of R used to solve the or-pattern problem. We increase the solvability by
+          -- reducing with R whenever we reach an or-pattern, that way we can use boolean logic to carve out the specific 
+          -- cases correctly. getVars returns a matrix where the rows are 'possibilities', each representing a branch of an or. 
+          --                  
+          -- getVars also does the induction over the columns for each row.
+          
+          -- Base case: no column (n=0) -> getVars(()) = ()
+          getVars [] = [[]]
+           
+          -- Case 1: If p_1 is a constructor pattern, we can just reduce it. If we have multiple possiblities after reducing, we need the
+          -- cartesian product so each possibility gets correctly updated. 
+          getVars ((PCon _ cs):ri) = (liftA2 (++)) (getVars cs) (getVars ri)
+
+          -- Case 2: If the pattern is a var, just add it to the list. Here again we map over possibilities
+          getVars (pv@(PVar _):ri) = ((:) pv) <$> (getVars ri)
+
+          -- If the pattern is an or-pattern, it's more complicated. The same variables have to be defined on both sides.
+          -- So whenever there is an or-pattern, we split the branches to compare individually, and the make sure each branch
+          -- has the same vars. The logic is as follows:
+
+          -- unique( (p_1 | p_2) ) = unique( R(p_1) ) && unique( R(p_2) ) && R(p_1) `setEqual` R(p_2) 
+
+          -- Case 3: If the pattern is an or-pattern, then create two new possibilities in the matrix.
+          getVars ((POr p1 p2):ri) = getVars [p1] ++ getVars [p2]
+
+
+
+          -- Here we finally define unique. r_i is row i, the induction is over the rows
+
+          -- Base cases, if no row: unique(()) = True
+
+          -- Inductive case: unique((r_i)) = True iff for all v_i, v_j in R(r_i), v_i /= v_j && unique((r_i-1))
+          checkUnique :: [[Pattern]] -> [Pattern] -> Either String ()
+          checkUnique [] stacktrace = (Right ())
+          checkUnique (r:rs) stacktrace = case r == (nub r) of
+
+            True -> checkUnique rs stacktrace
+            False -> (Left $ "\n\n  Multiple declaration of variable '" ++ prettyP (head (r \\ (nub r))) ++ "'\n\n  in: '" ++ prettyPVec stacktrace ++ "'.\n\n")
+
+          checkBranches = undefined
                                         
