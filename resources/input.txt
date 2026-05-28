@@ -18,9 +18,8 @@ data OneOfThose where
 === pattern matrix ===
 (nat x y z) w
 (list x) w
-(unit x) zero
 (unit x) (succ zero)
-
+x y
 
 === type ===
 OneOfThose Nat

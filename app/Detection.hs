@@ -2,8 +2,8 @@ module Detection where
 
 import UsefulClause
 import Parser
-import Data.List (sort, transpose, nub, (\\))
-import Control.Applicative (liftA2)
+import Data.List (sort, transpose, nub, (\\), intersperse)
+-- import Control.Applicative (liftA2)
 
 
 -- Check is a pattern matrix is exhaustive under defined data types
@@ -321,11 +321,20 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
 
           -- Inductive case: unique((r_i)) = True iff for all v_i, v_j in R(r_i), v_i /= v_j && unique((r_i-1))
           checkUnique :: [[Pattern]] -> [Pattern] -> Either String ()
-          checkUnique [] stacktrace = (Right ())
+          checkUnique [] _ = (Right ())
           checkUnique (r:rs) stacktrace = case r == (nub r) of
 
-            True -> checkUnique rs stacktrace
+            True  -> checkUnique rs stacktrace
             False -> (Left $ "\n\n  Multiple declaration of variable '" ++ prettyP (head (r \\ (nub r))) ++ "'\n\n  in: '" ++ prettyPVec stacktrace ++ "'.\n\n")
 
-          checkBranches = undefined
-                                        
+          -- This checks the possibilities, to make sure that all variables are defined in all possibilities.
+          -- That is equivalent to all or-patterns having the same variables bound on both sides.
+          checkBranches :: [[Pattern]] -> [Pattern] -> Either String ()
+          checkBranches xs stacktrace = (Left $ prettyPMat xs ++ " end \n  " ++ prettyPVec stacktrace)
+          checkBranches [] _ = (Right ())
+          checkBranches (_:[]) _ = (Right ())
+          checkBranches (r1:r2:rs) stacktrace = case r1 == r2 of
+
+            True  -> checkBranches (r2:rs) stacktrace
+            False -> (Left $ "\n\n Variables '" ++ (intersperse ',' $ prettyP (head (r1 \\ r2)) ++ prettyP (head (r2 \\ r1))) ++ "' are not defined in all branches of or-pattern"
+                      ++ "\n\n  in: '" ++ prettyPVec stacktrace ++ "'.\n\n")
