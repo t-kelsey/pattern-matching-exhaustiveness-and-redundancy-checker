@@ -11,6 +11,13 @@ import Data.List (sort, transpose, nub, (\\), intersperse)
 exhaustive :: DTypes -> PMat -> Bool
 exhaustive dts p = not $ (replicate (length $ head p) (PVar "x")) `isUsefulTo` p $ dts
 
+-- The witness of the exhaustive function. Returns an example row that is missing in the matrix.
+-- There is an example row e iff P is not exhaustive. e is defined U(P, e) = True. 
+-- Most importantly, Exhaustive(P@e) is NOT defined as true, as that is not the aim of the function I
+-- defined in the paper.
+witness :: DTypes -> PMat -> Either False PVec
+witness = undefined
+
 -- Infix version 
 isExhaustiveUnder :: PMat -> DTypes -> Bool
 p `isExhaustiveUnder` dts = exhaustive dts p
@@ -311,7 +318,7 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
           -- unique( (p_1 | p_2) ) = unique( R(p_1) ) && unique( R(p_2) ) && R(p_1) `setEqual` R(p_2) 
 
           -- Case 3: If the pattern is an or-pattern, then create two new possibilities in the matrix.
-          getVars ((POr p1 p2):ri) = getVars [p1] ++ getVars [p2]
+          getVars ((POr p1 p2):ri) = (liftA2 (++)) (getVars [p1] ++ getVars [p2]) (getVars ri)
 
 
 
@@ -325,16 +332,15 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
           checkUnique (r:rs) stacktrace = case r == (nub r) of
 
             True  -> checkUnique rs stacktrace
-            False -> (Left $ "\n\n  Multiple declaration of variable '" ++ prettyP (head (r \\ (nub r))) ++ "'\n\n  in: '" ++ prettyPVec stacktrace ++ "'.\n\n")
+            False -> (Left $ "\n\n  Multiple declaration of variable '" ++ prettyP (head (r \\ (nub r))) ++ "'\n\n  in: '" ++ prettyPVec stacktrace ++ "' of the pattern matrix.\n\n")
 
           -- This checks the possibilities, to make sure that all variables are defined in all possibilities.
           -- That is equivalent to all or-patterns having the same variables bound on both sides.
           checkBranches :: [[Pattern]] -> [Pattern] -> Either String ()
-          checkBranches xs stacktrace = (Left $ prettyPMat xs ++ " end \n  " ++ prettyPVec stacktrace)
           checkBranches [] _ = (Right ())
           checkBranches (_:[]) _ = (Right ())
           checkBranches (r1:r2:rs) stacktrace = case r1 == r2 of
 
             True  -> checkBranches (r2:rs) stacktrace
             False -> (Left $ "\n\n Variables '" ++ (intersperse ',' $ prettyP (head (r1 \\ r2)) ++ prettyP (head (r2 \\ r1))) ++ "' are not defined in all branches of or-pattern"
-                      ++ "\n\n  in: '" ++ prettyPVec stacktrace ++ "'.\n\n")
+                      ++ "\n\n  in: '" ++ prettyPVec stacktrace ++ "' of the pattern matrix.\n\n")

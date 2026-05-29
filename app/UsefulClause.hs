@@ -44,7 +44,6 @@ useful dts p q@(v@(PVar var): qs) = let s = getSigma p
 useful dts p q@((POr r_1 r_2): qs) = or [useful dts p (r_1:qs), useful dts p (r_2:qs)]
 
 
-
 -- The specialized matrix S(c,P) for constructor patterns. Recursive! The arity of the constructor is needed for the wildcard case.
 specializedP :: Constructor -> Int -> PMat -> PMat
 specializedP _ _ [] = []

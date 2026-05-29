@@ -19,7 +19,7 @@ data OneOfThose where
 (nat x y z) w
 (list x) w
 (unit x) (succ zero)
-x y
+(x | y) z
 
 === type ===
 OneOfThose Nat
