@@ -3,6 +3,8 @@ module Detection where
 import UsefulClause
 import Parser
 import Data.List (sort, transpose, nub, (\\), intersperse)
+import Data.Either (isLeft, isRight)
+
 -- import Control.Applicative (liftA2)
 
 
@@ -11,12 +13,52 @@ import Data.List (sort, transpose, nub, (\\), intersperse)
 exhaustive :: DTypes -> PMat -> Bool
 exhaustive dts p = not $ (replicate (length $ head p) (PVar "x")) `isUsefulTo` p $ dts
 
--- The witness of the exhaustive function. Returns an example row that is missing in the matrix.
+-- The witness of the exhaustive function. Returns an example row e that is missing in the matrix.
 -- There is an example row e iff P is not exhaustive. e is defined U(P, e) = True. 
 -- Most importantly, Exhaustive(P@e) is NOT defined as true, as that is not the aim of the function I
 -- defined in the paper.
-witness :: DTypes -> PMat -> Either False PVec
-witness = undefined
+witness :: DTypes -> PMat -> Int -> Either () PVec
+
+-- Base case I({},0) = ()
+witness _ _ 0 = (Right [])
+
+-- Base case I((),0) = False
+witness _ [] 0 = (Left ())
+
+-- Induction case
+witness dts pm n = let sigma = getSigma p 
+                 in case isComplete dts sigma of 
+
+                    -- If it's a complete signature, then return the first call that is not false
+                    -- if it exists.
+                    True -> collapse sigma
+
+                    -- If not, use the default matrix
+                    False -> case witness (defaultP pm) (n - 1) of
+
+                        -- If I(D(P), n - 1) = False, then I(D(P), n) = False
+                        (Left ())  -> (Left ())
+
+                        -- If I(D(P), n - 1) = (p2...pn), check signature is empty
+                        (Right pv) -> case sigma of
+
+                            -- If it is, that means no cons are used and a var catches all
+                            [] -> (Right (PVar "v") : pv)
+
+                            -- If not, just select the first con to display
+                            (c:cs) -> (PCon c (replicate a_k (PVar "_")))
+
+
+    collapse :: [Constructor] -> Either () PVec
+    collapse [] = (Left ())
+    collapse (c_k:sigma') = case witness (specializedP c_k a_k pm) a_k of
+
+        (Left ())  -> collapse sigma'
+
+        (Right pv) -> (Right (PCon c_k (take a_k pv)) : (drop a_k pv))
+
+        where a_k = getArity c_k
+
 
 -- Infix version 
 isExhaustiveUnder :: PMat -> DTypes -> Bool

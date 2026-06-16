@@ -153,6 +153,14 @@ isComplete dts cs@(c:_) =
 areSetsEqual :: (Ord a) => [a] -> [a] -> Bool
 areSetsEqual xs ys = sort xs == sort ys
 
+getBindings :: PMat -> [Pattern]
+getBindings [] = []
+getBindings (r1:pm) = concat (getBFromPat <$> r1) ++ getBindings pm
+
+    where getBFromPat (PCon c rs) = getBFromPat <$> rs
+          getBFromPat pv@(PVar v) = [pv]
+          getBFromPat (POr p1 p2) = [getBFromPat p1, getBFromPat p1]
+
 
 -- More practical infix version
 isUsefulTo :: PVec -> PMat -> DTypes -> Bool
