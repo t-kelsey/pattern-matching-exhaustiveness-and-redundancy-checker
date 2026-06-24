@@ -223,3 +223,8 @@ main = hspec $ do
                let dts = [("Nat", [("zero", ["Nat"]), ("succ", ["Nat", "Nat"])]), ("Fruit", [("apple", ["Fruit"])])]
                let v = [(PCon "succ" [(PCon "zero" [])]), (PCon "orange" [])]
                (pmatVarsUnique p) `shouldSatisfy` isLeft
+
+            it "Invert sigma: Bound variables multiple declaration negative" $ do
+               let dts = [("Fruit", [("apple", ["Fruit"]), ("orange", ["Fruit"]), ("pear", ["Pear"])])]
+               let c = ["apple"]
+               (invertSigma dts c) `shouldBe` ["orange", "pear"]

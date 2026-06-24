@@ -40,8 +40,8 @@ useful dts p q@(v@(PVar var): qs) = let s = getSigma p
                                 -- 2.(b). Case wildcard and sigma is not complete: U(P, (_ q_2 ... q_n)) = U(D(P), (q_2 ... q_n))
                                 False -> useful dts (defaultP p) qs
 
--- 3. Case or-pattern (r_1 | r_2): U(P, (r_1 | r_2) q_2 ... q_n) = U(P, r_1 q_2 ... q_n) \or U(P, r_2 q_2 ... q_n)
-useful dts p q@((POr r_1 r_2): qs) = or [useful dts p (r_1:qs), useful dts p (r_2:qs)]
+-- 3. Case or-pattern (r1 | r2): U(P, (r1 | r2) q_2 ... q_n) = U(P, r1 q_2 ... q_n) \or U(P, r2 q_2 ... q_n)
+useful dts p q@((POr r1 r2): qs) = or [useful dts p (r1:qs), useful dts p (r2:qs)]
 
 
 -- The specialized matrix S(c,P) for constructor patterns. Recursive! The arity of the constructor is needed for the wildcard case.
@@ -106,7 +106,7 @@ getSigma xs = nub $ getCons xs
                   _ -> getCons xs
 
 
--- Given a constructor, get it's arguments from the data type defs.
+-- Given a constructor, get it's argument types from the data type defs.
 getArgsFromCon :: DTypes -> Constructor -> [Type]
 getArgsFromCon dts c = 
     
@@ -145,13 +145,30 @@ isComplete :: DTypes -> [Constructor] -> Bool
 isComplete dts [] = False
 isComplete dts cs@(c:_) = 
     case [ first <$> cds | (t, cds) <- dts, t == getTypeFromCon dts c] of
-        (cs': _) -> areSetsEqual cs cs'
+        (cs': []) -> areSetsEqual cs cs'
         _ -> False
     where first (x, _) = x
 
+invertSigma :: DTypes -> [Constructor] -> [Constructor]
+invertSigma dts [] = []
+invertSigma dts cs@(c:_) =
+    case [ first <$> cds | (t, cds) <- dts, t == getTypeFromCon dts c] of
+        (cs': []) -> cs' `simpleSetSubtract` cs
+
+    where first (x, _) = x
 
 areSetsEqual :: (Ord a) => [a] -> [a] -> Bool
 areSetsEqual xs ys = sort xs == sort ys
+
+-- This subtract only works when ys is a subset of xs
+simpleSetSubtract :: (Ord a) => [a] -> [a] -> [a]
+xs `simpleSetSubtract` ys = subtr (sort xs) (sort ys)
+
+    where subtr xs [] = xs
+          subtr (x:xs) ys'@(y:ys) = case x == y of
+              True -> subtr xs ys
+              False -> x : (subtr xs ys')
+          subtr _ _ = []
 
 getBindings :: PMat -> [Pattern]
 getBindings [] = []

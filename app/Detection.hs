@@ -19,10 +19,10 @@ exhaustive dts pm = not $ (replicate (length $ head pm) (PVar "x")) `isUsefulTo`
 witness :: DTypes -> PMat -> Int -> Either () PVec
 
 -- Base case I({},0) = ()
-witness _ _ 0 = (Right [])
+witness _ [] 0 = (Right [])
 
 -- Base case I((),0) = False
-witness _ [] 0 = (Left ())
+witness _ _ 0 = (Left ())
 
 -- Induction case
 witness dts pm n = let sigma = getSigma pm
@@ -42,10 +42,11 @@ witness dts pm n = let sigma = getSigma pm
                         (Right pv) -> case sigma of
 
                             -- If it is, that means no cons are used and a var catches all
-                            [] -> (Right $ (PVar "v") : pv)
+                            [] -> (Right $ (PVar "_") : pv)
 
-                            -- If not, just select the first con to display. Can be extended to show all cons.
-                            (c:_) -> (Right [PCon c (replicate (getArity dts c) (PVar "_"))])
+                            -- If not, get a constructor not in sigma to display. Can be extended to show all cons.
+                            _ -> let c = head $ invertSigma dts sigma 
+                                 in (Right (PCon c (replicate (getArity dts c) (PVar "_")) : pv))
 
 
     where   collapse :: [Constructor] -> Either () PVec
@@ -53,7 +54,7 @@ witness dts pm n = let sigma = getSigma pm
             collapse (c_k:sigma') = 
                 let a_k = getArity dts c_k
 
-                in case witness dts (specializedP c_k a_k pm) a_k of
+                in case witness dts (specializedP c_k a_k pm) (a_k + n - 1) of
 
                 (Left ())  -> collapse sigma'
 
@@ -191,7 +192,7 @@ pmatConsExist dts pm = foldr propagate (Right ()) pm
 -- Make sure that the pattern matrix is of shape n * m
 pmatIsCorrectSize :: PMat -> Either String ()
 pmatIsCorrectSize []       = (Left $ "\n\n Malformed input in pmatIsCorrectSize.\n\n")
-pmatIsCorrectSize (r_1:pm) = foldr propagate (Right ()) pm 
+pmatIsCorrectSize (r1:pm) = foldr propagate (Right ()) pm 
 
     where propagate row' (Right ()) = if length row' == n
                                       then (Right ())
@@ -200,7 +201,7 @@ pmatIsCorrectSize (r_1:pm) = foldr propagate (Right ()) pm
 
           propagate _ (Left s) = (Left s)
 
-          n = length r_1 
+          n = length r1 
 
 -- Make sure that each constructor used in the pattern matrix has the correct number of arguments applied
 pmatConsHaveCorrectArity :: DTypes -> PMat -> Either String ()
@@ -248,43 +249,43 @@ pmatConsHaveCorrectArity dts pm = foldr propagate (Right ()) pm
 -- Ensure each pattern in a column is of the same type as the column
 pmatPatternsAreOfRightType :: DTypes -> PMat -> Either String ()
 pmatPatternsAreOfRightType _   []          = (Left $ "\n\n Malformed input in pmatPatternsAreOfRightType.\n\n")
-pmatPatternsAreOfRightType dts pm@(r_1:rs) = foldr propagate (Right ()) rs
+pmatPatternsAreOfRightType dts pm@(r1:rs) = foldr propagate (Right ()) rs
 
-    where propagate r_i (Right ()) = compareRow r_1 r_i (getColumnBindings dts pm) r_i
+    where propagate ri (Right ()) = compareRow r1 ri (getColumnBindings dts pm) ri
           propagate _   (Left s)   = (Left s)
 
           -- We check the binding of the first row, then compare that binding to each individual row
           compareRow []       _        _        _       = (Right ())
           -- r1: first row, ri: current compare row, cbs: column bindings. Need full row i for error message only
-          compareRow (p_1:r_1') (p_i:r_i') (cb_1:cbs) fullr_i = 
+          compareRow (p1:r1') (p_i:ri') (cb1:cbs) fullri = 
             
             if case (getTypeFromPattern dts p_i) of
                 
                 -- If the current pattern can be bound, compare it to the column type
-                (Just t) -> (Just t) == cb_1
+                (Just t) -> (Just t) == cb1
 
                 -- If it can't be bound, it's a variable (or Or-Pattern with only vars) and such is of the right type
                 Nothing  -> True
                                            
-            then compareRow r_1' r_i' cbs fullr_i
+            then compareRow r1' ri' cbs fullri
                                            
             else (Left $ "\n\n  Type read error: Pattern '" ++ prettyP p_i ++ "', in \n  '" 
-                                ++ prettyPVec (fullr_i) ++ "', is of wrong type.\n\n" 
-                                ++ "  Actual:    '" ++ prettyPT p_i ++ prettyIndirectBind p_1 cb_1 cbs ++ "\n\n" )
+                                ++ prettyPVec (fullri) ++ "', is of wrong type.\n\n" 
+                                ++ "  Actual:    '" ++ prettyPT p_i ++ prettyIndirectBind p1 cb1 cbs ++ "\n\n" )
         
           compareRow _ _ _ _ = (Left $ "\n\n Unexpected error in pmatPatternsAreOfRightType.\n\n")   
 
         
           -- Better error messages
-          prettyIndirectBind p_1' cb_1' cbs' = 
-            case (getTypeFromPattern dts p_1') == cb_1' of
+          prettyIndirectBind p1' cb1' cbs' = 
+            case (getTypeFromPattern dts p1') == cb1' of
                 True -> "'\n  Expected:    '" 
-                                ++ prettyTypeMaybe cb_1' ++ "',  bound at:  '"
-                                ++ prettyP p_1' ++ " :: " ++ prettyTypeMaybe cb_1' ++ "'\n  In the first row of the pattern matrix:\n  '" 
-                                ++ prettyPVec (r_1) ++ "'\n"
+                                ++ prettyTypeMaybe cb1' ++ "',  bound at:  '"
+                                ++ prettyP p1' ++ " :: " ++ prettyTypeMaybe cb1' ++ "'\n  In the first row of the pattern matrix:\n  '" 
+                                ++ prettyPVec (r1) ++ "'\n"
 
                 False -> "'\n Expected:    '"
-                                ++ prettyTypeMaybe cb_1' ++ "', bound at:  '"
+                                ++ prettyTypeMaybe cb1' ++ "', bound at:  '"
                                 ++ prettyP (head (dropWhile (\x -> getTypeFromPattern' dts x == "?") ((transpose pm) !! ((length (head pm) - length cbs') - 1))))
                                 ++ "'\n"
 
@@ -297,16 +298,17 @@ pmatPatternsAreOfRightType dts pm@(r_1:rs) = foldr propagate (Right ()) rs
 
 -- Get the binding of each column
 getColumnBindings :: DTypes -> PMat -> [Maybe Type]
-getColumnBindings dts pm = getColumnBinding <$> transpose pm -- Transposed so it goes column by column, not row by row
-    
+getColumnBindings dts pm = (getColumnBinding dts) <$> transpose pm -- Transposed so it goes column by column, not row by row
 
-    where getColumnBinding [] = Nothing
-          getColumnBinding (p1:ci) =
+-- Get the binding of a column. The PVec input is not a row but a column! 
+getColumnBinding :: DTypes -> PVec -> Maybe Type
+getColumnBinding _ [] = Nothing
+getColumnBinding dts (p1:ci) =
 
-            case getTypeFromPattern dts p1 of
+    case getTypeFromPattern dts p1 of
 
-                (Just t) -> (Just t) -- If the first pattern is bindable, return it
-                Nothing  -> getColumnBinding ci -- If not, move a row down
+        (Just t) -> (Just t) -- If the first pattern is bindable, return it
+        Nothing  -> getColumnBinding dts ci -- If not, move a row down
 
 
 -- Turn the 'maybe' into a type, which has an implicit show instance
@@ -337,11 +339,11 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
           -- Let's define variables as v_i, and patterns as p_i 
 
           -- The most important step is the recursive reduction function R, 
-          -- which holds for unique(p_1) == unique(p_2) iff unique(R(p_1)) == unique(R(p_2))
+          -- which holds for unique(p1) == unique(p_2) iff unique(R(p1)) == unique(R(p_2))
 
-          -- R is defined as:   R(c(r_1,...,r_a)) ~= R(r_1) ... R(r_a)
+          -- R is defined as:   R(c(r1,...,r_a)) ~= R(r1) ... R(r_a)
           --                    R(v)              ~= v
-          --                    R( r_1 | r_2 )    ~= ( R(r_1) | R(r_2) )   R does not have the power to solve the or itself 
+          --                    R( r1 | r2 )    ~= ( R(r1) | R(r2) )   R does not have the power to solve the or itself 
 
           -- Now, getVars is an extension of R used to solve the or-pattern problem. We increase the solvability by
           -- reducing with R whenever we reach an or-pattern, that way we can use boolean logic to carve out the specific 
@@ -352,7 +354,7 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
           -- Base case: no column (n=0) -> getVars(()) = ()
           getVars [] = [[]]
            
-          -- Case 1: If p_1 is a constructor pattern, we can just reduce it. If we have multiple possiblities after reducing, we need the
+          -- Case 1: If p1 is a constructor pattern, we can just reduce it. If we have multiple possiblities after reducing, we need the
           -- cartesian product so each possibility gets correctly updated. 
           getVars ((PCon _ cs):ri) = (liftA2 (++)) (getVars cs) (getVars ri)
 
@@ -363,18 +365,18 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
           -- So whenever there is an or-pattern, we split the branches to compare individually, and the make sure each branch
           -- has the same vars. The logic is as follows:
 
-          -- unique( (p_1 | p_2) ) = unique( R(p_1) ) && unique( R(p_2) ) && R(p_1) `setEqual` R(p_2) 
+          -- unique( (p1 | p_2) ) = unique( R(p1) ) && unique( R(p_2) ) && R(p1) `setEqual` R(p_2) 
 
           -- Case 3: If the pattern is an or-pattern, then create two new possibilities in the matrix.
           getVars ((POr p1 p2):ri) = (liftA2 (++)) (getVars [p1] ++ getVars [p2]) (getVars ri)
 
 
 
-          -- Here we finally define unique. r_i is row i, the induction is over the rows
+          -- Here we finally define unique. ri is row i, the induction is over the rows
 
           -- Base cases, if no row: unique(()) = True
 
-          -- Inductive case: unique((r_i)) = True iff for all v_i, v_j in R(r_i), v_i /= v_j && unique((r_i-1))
+          -- Inductive case: unique((ri)) = True iff for all v_i, v_j in R(ri), v_i /= v_j && unique((ri-1))
           checkUnique :: [[Pattern]] -> [Pattern] -> Either String ()
           checkUnique [] _ = (Right ())
           checkUnique (r:rs) stacktrace = case r == (nub r) of
@@ -392,3 +394,27 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
             True  -> checkBranches (r2:rs) stacktrace
             False -> (Left $ "\n\n Variables '" ++ (intersperse ',' $ prettyP (head (r1 \\ r2)) ++ prettyP (head (r2 \\ r1))) ++ "' are not defined in all branches of or-pattern"
                       ++ "\n\n  in: '" ++ prettyPVec stacktrace ++ "' of the pattern matrix.\n\n")
+
+
+-- Return the bindings of each unique variable, for each column
+getVarBindings :: DTypes -> PMat -> [[(String, Maybe Type)]]
+getVarBindings _ [] = []
+getVarBindings dts pm = (getColVarBindings dts) <$> (transpose pm)
+
+getColVarBindings :: DTypes -> PVec -> [(String, Maybe Type)]
+getColVarBindings dts col = getColVarBindings' (getColumnBinding dts col) col
+
+    where getColVarBindings' :: Maybe Type -> PVec -> [(String, Maybe Type)]
+          getColVarBindings' _ [] = []
+
+          -- Compare each pattern in a column to the column's binding
+          getColVarBindings' cb (p1:ps) = case p1 of
+
+            -- if the first pattern is a con, we can get it's arguments type and bind any variables that way
+            (PCon c cs) -> (concat $ zipWith getColVarBindings' (Just <$> getArgsFromCon dts c) ((\x->[x]) <$> cs)) ++ getColVarBindings' cb ps
+
+            -- if the first pattern is a var, return it with the type of the column
+            (PVar v) -> (v, cb) : (getColVarBindings' cb ps)
+
+            -- if the first pattern is an or, as both sides still have the same type as the row, VarBinds(r1|r2 ... pn) = VarBinds(r1 r2 ... pn)
+            (POr p1' p2') -> getColVarBindings' cb (p1':p2':ps)

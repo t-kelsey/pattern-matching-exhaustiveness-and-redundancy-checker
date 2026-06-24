@@ -253,7 +253,7 @@ checkPMat s =
 
     (_, pm, _):_ -> case runParserEnd (many1 line) (pm ++ "\n") of
 
-      [] -> (Left $ "Parse error in pmat, couldn't split lines:\n" ++ pm ++ "\n\n")
+      [] -> (Left $ "\n\nParse error in pmat, couldn't split lines:\n" ++ pm ++ "\n\n")
       (x:_) -> findPMatErrs x
 
     _ -> (Left "")
@@ -286,7 +286,12 @@ checkVVec s =
       _ -> (Right ())
     
     _ -> (Left "")
-                          
+
+checkEmptySections :: String -> Either String ()
+checkEmptySections s = case (head $ runParserEnd sectionHeaders s) of
+    ([],_,_) -> (Left $ "\n\nParse failure, data type definitions are empty.")
+    (_,[],_) -> (Left $ "\n\nParse failure, pattern matrix is empty.")
+    _ -> (Right ())
 
 sectionHeaders :: Parser Char (String, String, String)
 sectionHeaders =

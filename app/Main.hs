@@ -2,6 +2,7 @@ module Main where
 
 import Parser
 import Detection
+import Data.List (intercalate, transpose)
 
 main :: IO ()
 main = do
@@ -11,7 +12,7 @@ main = do
         (Right ())  -> -- No parse errors detected
             case runParserEnd match' contents of
             
-            []      -> putStrLn "\n\n  Parse failure: Could not match test.txt. Check your syntax.\n"
+            []      -> putStrLn "\n\n  Parse failure: Could not match input.txt. Check your syntax.\n"
 
             -- If the datatypes and pattern matrix parse, run the warnings function on them
             ((dts, pm, _):_) -> putStrLn (warnings dts pm)
@@ -32,11 +33,12 @@ warnings dts pm = case typeCheck dts pm of
             -- here extensions such as overcomplicated cases
             -- ocCasesText = ocCasesTextGen
 
-            header ++ isExTextGen ++ urTextGen ++ footer
+            header ++ isExTextGen ++ vbTextGen ++ urTextGen ++ footer
 
         (Left errorText) -> errorText
 
     where 
+          -- Returns the text for checking exhaustiveness
           isExTextGen :: String
           isExTextGen =
             case pm `isExhaustiveUnder` dts of
@@ -44,21 +46,36 @@ warnings dts pm = case typeCheck dts pm of
                 True -> "\n\n    Success: Cases are exhaustive"
                 False -> "\n\n    Failure: Cases are not exhaustive" ++ casesForExTextGen
 
+          -- Returns the text for how each variable was bound
+          vbTextGen :: String
+          vbTextGen = "\n\n    with bindings  \n      column 1     column 2  ... \n      " ++ intercalate "\n      " (convertVarBindsToString <$> (transpose $ getVarBindings dts pm))
+
+          convertVarBindsToString [] = []
+          convertVarBindsToString ((v, mt):xs) = 
+            case mt of
+
+                (Just t) -> v ++ ": " ++ t ++ ",     " ++ convertVarBindsToString xs
+                Nothing   -> v ++ ": ?" ++ ",       " ++ convertVarBindsToString xs
+
+          -- Returns the text for redundant cases, also called useless rows
           urTextGen :: String
           urTextGen =
             case containsUselessRow dts pm of
 
                 (Just pv) -> "\n\n    '" ++ prettyPVec pv ++ "'\n    ^ This case in the pattern matrix is redundant"
-                Nothing -> ""
+                Nothing -> "\n\n    No cases are redundant."
 
           casesForExTextGen :: String
-          casesForExTextGen = "\n\n    Maybe you forgot this case: Not implemented yet"
+          casesForExTextGen = "\n\n    Maybe you forgot this case: " ++ case witness dts pm (length $ head pm) of
+                                                                            (Left ()) -> "Could not find missing case."
+                                                                            (Right pv) -> prettyPVec pv
 
 
 findParseError :: String -> Either String ()
 findParseError s = do
 
     checkSectionHeaders s -- Ensure the dividers of the sections are correctly in place
+    checkEmptySections s  -- Ensure each section isn't empty
     checkDTypes s         -- Ensure no data types are malfomed 
     checkPMat s           -- Ensure the pattern matrix is not malformed
     checkVVec s           -- Ensure the types (values) given aren't malformed
@@ -93,3 +110,10 @@ findParseError s = do
 -- Extension idea 6: Semantic checking after parse, "This data type is malformed: xxx"
 
 -- Extension idea 7: "Safeguards" as defined by the paper against exponential runtime in real applications
+
+-- TO-DO: 
+-- tests
+-- in witness: unique variable declaration
+-- check bound variables again
+-- display how each var is bound
+-- redundancy
