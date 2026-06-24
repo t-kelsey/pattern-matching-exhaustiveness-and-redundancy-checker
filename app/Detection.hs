@@ -3,7 +3,6 @@ module Detection where
 import UsefulClause
 import Parser
 import Data.List (sort, transpose, nub, (\\), intersperse)
-import Data.Either (isLeft, isRight)
 
 -- import Control.Applicative (liftA2)
 
@@ -11,7 +10,7 @@ import Data.Either (isLeft, isRight)
 -- Check is a pattern matrix is exhaustive under defined data types
 -- P is exhaustive if and only if U(P, (_..._)) is false
 exhaustive :: DTypes -> PMat -> Bool
-exhaustive dts p = not $ (replicate (length $ head p) (PVar "x")) `isUsefulTo` p $ dts
+exhaustive dts pm = not $ (replicate (length $ head pm) (PVar "x")) `isUsefulTo` pm $ dts
 
 -- The witness of the exhaustive function. Returns an example row e that is missing in the matrix.
 -- There is an example row e iff P is not exhaustive. e is defined U(P, e) = True. 
@@ -26,7 +25,7 @@ witness _ _ 0 = (Right [])
 witness _ [] 0 = (Left ())
 
 -- Induction case
-witness dts pm n = let sigma = getSigma p 
+witness dts pm n = let sigma = getSigma pm
                  in case isComplete dts sigma of 
 
                     -- If it's a complete signature, then return the first call that is not false
@@ -34,7 +33,7 @@ witness dts pm n = let sigma = getSigma p
                     True -> collapse sigma
 
                     -- If not, use the default matrix
-                    False -> case witness (defaultP pm) (n - 1) of
+                    False -> case witness dts (defaultP pm) (n - 1) of
 
                         -- If I(D(P), n - 1) = False, then I(D(P), n) = False
                         (Left ())  -> (Left ())
@@ -43,50 +42,53 @@ witness dts pm n = let sigma = getSigma p
                         (Right pv) -> case sigma of
 
                             -- If it is, that means no cons are used and a var catches all
-                            [] -> (Right (PVar "v") : pv)
+                            [] -> (Right $ (PVar "v") : pv)
 
-                            -- If not, just select the first con to display
-                            (c:cs) -> (PCon c (replicate a_k (PVar "_")))
+                            -- If not, just select the first con to display. Can be extended to show all cons.
+                            (c:_) -> (Right [PCon c (replicate (getArity dts c) (PVar "_"))])
 
 
-    collapse :: [Constructor] -> Either () PVec
-    collapse [] = (Left ())
-    collapse (c_k:sigma') = case witness (specializedP c_k a_k pm) a_k of
+    where   collapse :: [Constructor] -> Either () PVec
+            collapse [] = (Left ())
+            collapse (c_k:sigma') = 
+                let a_k = getArity dts c_k
 
-        (Left ())  -> collapse sigma'
+                in case witness dts (specializedP c_k a_k pm) a_k of
 
-        (Right pv) -> (Right (PCon c_k (take a_k pv)) : (drop a_k pv))
+                (Left ())  -> collapse sigma'
 
-        where a_k = getArity c_k
+                (Right pv) -> (Right $ (PCon c_k (take a_k pv)) : (drop a_k pv))
+
+        
 
 
 -- Infix version 
 isExhaustiveUnder :: PMat -> DTypes -> Bool
-p `isExhaustiveUnder` dts = exhaustive dts p
+pm `isExhaustiveUnder` dts = exhaustive dts pm
 
 -- Check if a row pi in p is useless by checking if the row is useful to p' where p' only
 -- includes rows p0 to p(i-1).
 uselessRow :: DTypes -> PMat -> Int -> Bool
-uselessRow dts p i = 
-    case i >= 0 && i < (length p) of
+uselessRow dts pm i = 
+    case i >= 0 && i < (length pm) of
 
-        True -> not $ p!!i `isUsefulTo` take i p $ dts
+        True -> not $ pm!!i `isUsefulTo` take i pm $ dts
 
-        False -> error "Index out of bounds of p"
+        False -> error "Index out of bounds of pmat"
 
 -- Check if the given pattern matrix contains a useless row
 -- P does not have useless rows if UR(P, i) is false for all i
 -- Always just gives the last useless row, but all information is there:
 -- once the last row is corrected ones before can be found
 containsUselessRow :: DTypes -> PMat -> Maybe PVec
-containsUselessRow dts p = checkRows ((length p) - 1)
+containsUselessRow dts pm = checkRows ((length pm) - 1)
 
     where checkRows :: Int -> Maybe PVec
           checkRows (-1) = Nothing
           checkRows i =
 
-            case uselessRow dts p i of
-                True -> Just (p!!i)
+            case uselessRow dts pm i of
+                True -> Just (pm!!i)
                 False -> checkRows (i-1)
 
 
@@ -94,16 +96,16 @@ containsUselessRow dts p = checkRows ((length p) - 1)
 -- This makes sure the input is viable and already takes some work from the compiler
 -- by preprocessing things like variable handling so the compiler doesn't have to worry about it
 typeCheck :: DTypes -> PMat -> Either String ()
-typeCheck dts pmat = do
+typeCheck dts pm = do
 
     dtypeConReturnsType dts             -- Each constructor should returns the type it is supposed to construct
     dtypeTypesExist dts                 -- Each data type used in a definition actually exists
     dtypeNamesUnique dts                -- Each defined type and constructor name is unique
-    pmatConsExist dts pmat              -- Each type used in the pattern matrix is defined
-    pmatIsCorrectSize pmat              -- Ensure matrix if of width n, no row is longer or shorter
-    pmatConsHaveCorrectArity dts pmat   -- Ensure that each constructor used in the pattern matrix has the correct number of arguments applied
-    pmatPatternsAreOfRightType dts pmat -- Ensure each pattern in a column is of the same type as the column
-    pmatVarsUnique pmat                 -- Ensure each variable used is either unique or is in the same level of an or-pattern
+    pmatConsExist dts pm                -- Each type used in the pattern matrix is defined
+    pmatIsCorrectSize pm                -- Ensure matrix if of width n, no row is longer or shorter
+    pmatConsHaveCorrectArity dts pm     -- Ensure that each constructor used in the pattern matrix has the correct number of arguments applied
+    pmatPatternsAreOfRightType dts pm   -- Ensure each pattern in a column is of the same type as the column
+    pmatVarsUnique pm                   -- Ensure each variable used is either unique or is in the same level of an or-pattern
 
 
 -- Make sure that each constructor returns the type it is supposed to construct
@@ -184,11 +186,12 @@ pmatConsExist dts pm = foldr propagate (Right ()) pm
 
 
           -- Each constructor defined in DTypes
-          cons = [ con | (et, cds) <- dts, (con, ts) <- cds]
+          cons = [ con | (_, cds) <- dts, (con, _) <- cds]
 
 -- Make sure that the pattern matrix is of shape n * m
 pmatIsCorrectSize :: PMat -> Either String ()
-pmatIsCorrectSize (r1:pm) = foldr propagate (Right ()) pm 
+pmatIsCorrectSize []       = (Left $ "\n\n Malformed input in pmatIsCorrectSize.\n\n")
+pmatIsCorrectSize (r_1:pm) = foldr propagate (Right ()) pm 
 
     where propagate row' (Right ()) = if length row' == n
                                       then (Right ())
@@ -197,7 +200,7 @@ pmatIsCorrectSize (r1:pm) = foldr propagate (Right ()) pm
 
           propagate _ (Left s) = (Left s)
 
-          n = length r1 
+          n = length r_1 
 
 -- Make sure that each constructor used in the pattern matrix has the correct number of arguments applied
 pmatConsHaveCorrectArity :: DTypes -> PMat -> Either String ()
@@ -236,7 +239,7 @@ pmatConsHaveCorrectArity dts pm = foldr propagate (Right ()) pm
           rowArity ((PVar _):xs) = rowArity xs
 
           -- Case 3: pattern is an or-pattern
-          rowArity ((POr p1 p2):xs) = case rowArity (p1:p1:[]) of
+          rowArity ((POr p1 p2):xs) = case rowArity (p1:p2:[]) of
 
                                         (Right ()) -> rowArity xs
                                         (Left s)   -> (Left s)
@@ -244,45 +247,48 @@ pmatConsHaveCorrectArity dts pm = foldr propagate (Right ()) pm
 
 -- Ensure each pattern in a column is of the same type as the column
 pmatPatternsAreOfRightType :: DTypes -> PMat -> Either String ()
-pmatPatternsAreOfRightType dts pmat@(r1:pm) = foldr propagate (Right ()) pm
+pmatPatternsAreOfRightType _   []          = (Left $ "\n\n Malformed input in pmatPatternsAreOfRightType.\n\n")
+pmatPatternsAreOfRightType dts pm@(r_1:rs) = foldr propagate (Right ()) rs
 
-    where propagate ri (Right ()) = compareRow r1 ri (getColumnBindings dts pmat) ri
+    where propagate r_i (Right ()) = compareRow r_1 r_i (getColumnBindings dts pm) r_i
           propagate _   (Left s)   = (Left s)
 
           -- We check the binding of the first row, then compare that binding to each individual row
           compareRow []       _        _        _       = (Right ())
-          -- r1: first row, ri: current compare row, cbs: column bindings. Need r1 for error message only
-          compareRow (p1:r1') (pi:ri') (cb1:cbs) fullri = 
+          -- r1: first row, ri: current compare row, cbs: column bindings. Need full row i for error message only
+          compareRow (p_1:r_1') (p_i:r_i') (cb_1:cbs) fullr_i = 
             
-            if case (getTypeFromPattern dts pi) of
+            if case (getTypeFromPattern dts p_i) of
                 
                 -- If the current pattern can be bound, compare it to the column type
-                (Just t) -> (Just t) == cb1
+                (Just t) -> (Just t) == cb_1
 
                 -- If it can't be bound, it's a variable (or Or-Pattern with only vars) and such is of the right type
                 Nothing  -> True
                                            
-            then compareRow r1' ri' cbs fullri
+            then compareRow r_1' r_i' cbs fullr_i
                                            
-            else (Left $ "\n\n  Type read error: Pattern '" ++ prettyP pi ++ "', in \n  '" 
-                                ++ prettyPVec (fullri) ++ "', is of wrong type.\n\n" 
-                                ++ "  Actual:    '" ++ prettyPT pi ++ prettyIndirectBind p1 cb1 cbs ++ "\n\n" )
+            else (Left $ "\n\n  Type read error: Pattern '" ++ prettyP p_i ++ "', in \n  '" 
+                                ++ prettyPVec (fullr_i) ++ "', is of wrong type.\n\n" 
+                                ++ "  Actual:    '" ++ prettyPT p_i ++ prettyIndirectBind p_1 cb_1 cbs ++ "\n\n" )
+        
+          compareRow _ _ _ _ = (Left $ "\n\n Unexpected error in pmatPatternsAreOfRightType.\n\n")   
 
         
           -- Better error messages
-          prettyIndirectBind p1' cb1' cbs' = 
-            case (getTypeFromPattern dts p1') == cb1' of
+          prettyIndirectBind p_1' cb_1' cbs' = 
+            case (getTypeFromPattern dts p_1') == cb_1' of
                 True -> "'\n  Expected:    '" 
-                                ++ prettyTypeMaybe cb1' ++ "',  bound at:  '"
-                                ++ prettyP p1' ++ " :: " ++ prettyTypeMaybe cb1' ++ "'\n  In the first row of the pattern matrix:\n  '" 
-                                ++ prettyPVec (r1) ++ "'\n"
+                                ++ prettyTypeMaybe cb_1' ++ "',  bound at:  '"
+                                ++ prettyP p_1' ++ " :: " ++ prettyTypeMaybe cb_1' ++ "'\n  In the first row of the pattern matrix:\n  '" 
+                                ++ prettyPVec (r_1) ++ "'\n"
 
                 False -> "'\n Expected:    '"
-                                ++ prettyTypeMaybe cb1' ++ "', bound at:  '"
-                                ++ prettyP (head (dropWhile (\x -> getTypeFromPattern' dts x == "?") ((transpose pmat) !! ((length (head pmat) - length cbs') - 1))))
+                                ++ prettyTypeMaybe cb_1' ++ "', bound at:  '"
+                                ++ prettyP (head (dropWhile (\x -> getTypeFromPattern' dts x == "?") ((transpose pm) !! ((length (head pm) - length cbs') - 1))))
                                 ++ "'\n"
 
-          prettyPT p = prettyType (getTypeFromPattern' dts p)
+          prettyPT pm' = prettyType (getTypeFromPattern' dts pm')
 
           prettyTypeMaybe (Just t) = t
           prettyTypeMaybe (Nothing) = "?"
@@ -305,7 +311,7 @@ getColumnBindings dts pm = getColumnBinding <$> transpose pm -- Transposed so it
 
 -- Turn the 'maybe' into a type, which has an implicit show instance
 getTypeFromPattern' :: DTypes -> Pattern -> Type
-getTypeFromPattern' dts p = case getTypeFromPattern dts p of
+getTypeFromPattern' dts pm = case getTypeFromPattern dts pm of
                                             (Just t) -> t
                                             Nothing  -> "?"
 

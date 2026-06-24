@@ -157,9 +157,10 @@ getBindings :: PMat -> [Pattern]
 getBindings [] = []
 getBindings (r1:pm) = concat (getBFromPat <$> r1) ++ getBindings pm
 
-    where getBFromPat (PCon c rs) = getBFromPat <$> rs
+    where getBFromPat :: Pattern -> [Pattern]
+          getBFromPat (PCon c rs) = concat $ getBFromPat <$> rs
           getBFromPat pv@(PVar v) = [pv]
-          getBFromPat (POr p1 p2) = [getBFromPat p1, getBFromPat p1]
+          getBFromPat (POr p1 p2) = getBFromPat p1 ++ getBFromPat p1
 
 
 -- More practical infix version
