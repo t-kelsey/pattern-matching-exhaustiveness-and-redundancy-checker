@@ -16,10 +16,10 @@ data OneOfThose where
   unit : Unit -> OneOfThose
 
 === pattern matrix ===
-(nat x y z) w
-(list x) w
-(unit x) (succ (succ y))
-(unit x) y
+(nat x y z) w zero
+(list x) w z
+(unit x) (succ (succ y)) z
+(unit x) y z
 
 === type ===
 OneOfThose Nat

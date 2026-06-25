@@ -397,24 +397,24 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
 
 
 -- Return the bindings of each unique variable, for each column
-getVarBindings :: DTypes -> PMat -> [[(String, Maybe Type)]]
+getVarBindings :: DTypes -> PMat -> [[[(String, Maybe Type)]]]
 getVarBindings _ [] = []
 getVarBindings dts pm = (getColVarBindings dts) <$> (transpose pm)
 
-getColVarBindings :: DTypes -> PVec -> [(String, Maybe Type)]
+getColVarBindings :: DTypes -> PVec -> [[(String, Maybe Type)]]
 getColVarBindings dts col = getColVarBindings' (getColumnBinding dts col) col
 
-    where getColVarBindings' :: Maybe Type -> PVec -> [(String, Maybe Type)]
+    where getColVarBindings' :: Maybe Type -> PVec -> [[(String, Maybe Type)]]
           getColVarBindings' _ [] = []
 
           -- Compare each pattern in a column to the column's binding
           getColVarBindings' cb (p1:ps) = case p1 of
 
-            -- if the first pattern is a con, we can get it's arguments type and bind any variables that way
-            (PCon c cs) -> (concat $ zipWith getColVarBindings' (Just <$> getArgsFromCon dts c) ((\x->[x]) <$> cs)) ++ getColVarBindings' cb ps
+            -- if the first pattern is a con, we can get it's argument's type and bind any variables that way   
+            (PCon c cs) -> (concat $ concat $ zipWith getColVarBindings' (Just <$> getArgsFromCon dts c) ((\x->[x]) <$> cs)) : getColVarBindings' cb ps
 
             -- if the first pattern is a var, return it with the type of the column
-            (PVar v) -> (v, cb) : (getColVarBindings' cb ps)
+            (PVar v) -> [(v, cb)] : (getColVarBindings' cb ps)
 
             -- if the first pattern is an or, as both sides still have the same type as the row, VarBinds(r1|r2 ... pn) = VarBinds(r1 r2 ... pn)
             (POr p1' p2') -> getColVarBindings' cb (p1':p2':ps)

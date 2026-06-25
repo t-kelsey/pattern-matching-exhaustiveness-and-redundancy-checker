@@ -30,8 +30,6 @@ warnings dts pm = case typeCheck dts pm of
         (Right ()) -> do
             let header = "\n\n--- EXHAUSTIVENESS AND REDUNDANCY CHECKER OUTPUT ---"
             let footer = "\n\n----------------------------------------------------"
-            -- here extensions such as overcomplicated cases
-            -- ocCasesText = ocCasesTextGen
 
             header ++ isExTextGen ++ vbTextGen ++ urTextGen ++ footer
 
@@ -47,15 +45,27 @@ warnings dts pm = case typeCheck dts pm of
                 False -> "\n\n    Failure: Cases are not exhaustive" ++ casesForExTextGen
 
           -- Returns the text for how each variable was bound
-          vbTextGen :: String
-          vbTextGen = "\n\n    with bindings  \n      column 1     column 2  ... \n      " ++ intercalate "\n      " (convertVarBindsToString <$> (transpose $ getVarBindings dts pm))
+          vbTextGen :: String 
+          vbTextGen = "\n\n\n    with bindings:  \n\n        column 1                      column 2                      ... \n      "  
+                      ++ intercalate "\n      " (formatRow <$> transpose (getVarBindings dts pm)) 
 
-          convertVarBindsToString [] = []
+
+          formatRow :: [[(String, Maybe Type)]] -> String 
+          formatRow [] = "" 
+          formatRow cells = concat ((\s -> s ++ replicate (30 - length s) ' ') . formatCell <$> cells) 
+
+          formatCell [] = " [ --- ] " 
+          formatCell binds = " [ " ++ intercalate ", " (formatBind <$> binds) ++ " ] " 
+
+          formatBind (v, Just t)  = v ++ ": " ++ t 
+          formatBind (v, Nothing) = v ++ ": ?"
+
+          convertVarBindsToString :: [(String, Maybe Type)] -> String
+          convertVarBindsToString [] = ""
           convertVarBindsToString ((v, mt):xs) = 
             case mt of
-
-                (Just t) -> v ++ ": " ++ t ++ ",     " ++ convertVarBindsToString xs
-                Nothing   -> v ++ ": ?" ++ ",       " ++ convertVarBindsToString xs
+                Just t  -> v ++ ": " ++ t ++ ",     " ++ convertVarBindsToString xs
+                Nothing -> v ++ ": ?"     ++ ",       " ++ convertVarBindsToString xs
 
           -- Returns the text for redundant cases, also called useless rows
           urTextGen :: String
@@ -117,3 +127,4 @@ findParseError s = do
 -- check bound variables again
 -- display how each var is bound
 -- redundancy
+-- delete type (last section in input)
