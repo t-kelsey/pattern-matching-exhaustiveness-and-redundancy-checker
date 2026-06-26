@@ -1,3 +1,6 @@
+-- Testing the parser for or-patterns
+-- Case: A Bit pattern matches zero or one
+
 === data types ===
 data Bit where
   zero : Bit

@@ -1,0 +1,15 @@
+-- Testing type checking for bound variables
+-- Case: Variables are declared without duplicates
+
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+data Fruit where
+  apple : Fruit
+
+=== pattern matrix ===
+(succ y) x
+x apple
+zero x

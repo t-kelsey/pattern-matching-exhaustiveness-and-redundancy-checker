@@ -1,5 +1,5 @@
--- Testing the useful-clause check
--- Case: The row nat zero x nil is useful
+-- Testing exhaustiveness detection
+-- Case: The pattern matrix is exhaustive
 
 === data types ===
 data Unit where
@@ -19,7 +19,8 @@ data OneOfThose where
   unit : Unit -> OneOfThose
 
 === pattern matrix ===
-(nat zero y nil) x
-(nat x zero y) | (nat zero zero nil)  x
+(nat x zero y) | (nat zero zero nil)  z
       (list (cons zero nil))          x
-            (unit x)                  x
+            (unit x)                  y
+            (nat x y z) w
+            (list x)  y   

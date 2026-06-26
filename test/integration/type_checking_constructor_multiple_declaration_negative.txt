@@ -1,0 +1,13 @@
+-- Testing type checking for constructors
+-- Case: A constructor is declared in multiple data types
+
+=== data types ===
+data Fruit where
+  apple  : Fruit
+  orange : Fruit
+
+data Vegetable where
+  apple : Vegetable
+
+=== pattern matrix ===
+x

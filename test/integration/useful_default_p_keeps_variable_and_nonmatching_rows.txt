@@ -1,3 +1,6 @@
+-- Testing the defaultP helper
+-- Case: Variables and nonmatching rows are preserved
+
 === data types ===
 data Nat where
   zero : Nat

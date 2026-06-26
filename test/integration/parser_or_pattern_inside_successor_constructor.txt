@@ -1,3 +1,6 @@
+-- Testing the parser for or-patterns
+-- Case: Alternatives appear inside a successor constructor
+
 === data types ===
 data Nat where
   zero : Nat

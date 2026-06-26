@@ -1,3 +1,6 @@
+-- Testing the parser for pattern rows
+-- Case: Uppercase constructors are accepted in rows
+
 === data types ===
 data Nat where
   zero : Nat

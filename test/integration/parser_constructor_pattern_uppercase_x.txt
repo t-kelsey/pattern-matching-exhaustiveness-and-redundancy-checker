@@ -1,3 +1,6 @@
+-- Testing the parser for constructor patterns
+-- Case: Uppercase X is parsed as a constructor
+
 === data types ===
 data Nat where
   zero : Nat

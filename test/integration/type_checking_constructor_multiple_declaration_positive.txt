@@ -1,0 +1,13 @@
+-- Testing type checking for constructors
+-- Case: Constructors are declared without duplicates
+
+=== data types ===
+data Fruit where
+  apple  : Fruit
+  orange : Fruit
+
+data Vegetable where
+  tomato : Vegetable
+
+=== pattern matrix ===
+x

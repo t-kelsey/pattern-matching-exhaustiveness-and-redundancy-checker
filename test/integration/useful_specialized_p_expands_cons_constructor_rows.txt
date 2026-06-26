@@ -1,3 +1,6 @@
+-- Testing the specializedP helper
+-- Case: Cons constructor rows are expanded
+
 === data types ===
 data Nat where
   zero : Nat

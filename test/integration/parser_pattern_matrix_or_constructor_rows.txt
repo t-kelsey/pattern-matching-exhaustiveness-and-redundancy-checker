@@ -1,3 +1,6 @@
+-- Testing the parser for pattern matrices
+-- Case: Rows mix or-patterns and constructor patterns
+
 === data types ===
 data Unit where
   tt : Unit

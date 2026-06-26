@@ -1,3 +1,6 @@
+-- Testing the parser for a full match input
+-- Case: Unit, Nat, List, and OneOfThose patterns are parsed together
+
 === data types ===
 data Unit where
   tt : Unit

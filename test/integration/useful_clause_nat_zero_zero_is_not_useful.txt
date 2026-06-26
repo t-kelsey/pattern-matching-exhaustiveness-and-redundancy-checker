@@ -1,3 +1,6 @@
+-- Testing the useful-clause check
+-- Case: The row nat zero zero is not useful
+
 === data types ===
 data Unit where
   tt : Unit
@@ -16,6 +19,7 @@ data OneOfThose where
   unit : Unit -> OneOfThose
 
 === pattern matrix ===
+(nat zero zero) x
 (nat x zero y) | (nat zero zero nil)  x
       (list (cons zero nil))          x
             (unit x)                  x

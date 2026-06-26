@@ -1,3 +1,6 @@
+-- Testing exhaustiveness detection for OneOfThose
+-- Case: A wildcard row makes the matrix exhaustive
+
 === data types ===
 data Unit where
   tt : Unit
@@ -16,6 +19,7 @@ data OneOfThose where
   unit : Unit -> OneOfThose
 
 === pattern matrix ===
-(nat x zero y) | (nat zero zero nil)  x
-      (list (cons zero nil))          x
-            (unit x)                  x
+z z
+(nat x zero y) | (nat zero zero nil) x
+(list (cons zero nil)) x
+(unit x) x

@@ -98,7 +98,7 @@ ws' :: Parser Char [Char]
 ws' = many0 (lit ' ' <|> lit '\t')
 
 anything :: Parser Char String
-anything = many1 $ (satisfy (\_->True) <* ws)
+anything = many1 $ (satisfy (\_->True) <* ws')
 
 line :: Parser Char String
 line = many0 (satisfy (\x -> x /= '\n')) <* satisfy (== '\n')
@@ -145,7 +145,7 @@ dtype =
 -- Parses any amount of "f : a -> b -> c ..." type signatures into a list 
 constrDeclarations :: Parser Char [(String, [Type])]
 constrDeclarations = sepBy1 constrDeclaration (ws' *> lit '\n' *> ws') where
-  constrDeclaration = (,) <$> constructor <* ws <* lit ':' <* ws <*> typeSignature
+  constrDeclaration = (,) <$> constructor <* ws' <* lit ':' <* ws' <*> typeSignature
 
 -- Parses "a -> b -> c ..." into a list of types
 typeSignature :: Parser Char [Type] 
@@ -199,7 +199,7 @@ vvec = ws *> sepBy1 ttype ws1 <* ws
 -- Parse the entire match structure
 match :: Parser Char Match
 match =
-  many0 (ws *> lits "--" *> many1 (ws' *> string) <* ws)
+  many0 (ws *> lits "--" *> many1 (ws' *> anything) <* ws)
     *> ( (,)
           <$> (ws *> lits "=== data types ===" *> ws *> dtypes)
           <*> (ws *> lits "=== pattern matrix ===" *> ws *> pmat)
@@ -305,7 +305,7 @@ checkEmptySections s = case (head $ runParserEnd sectionHeaders s) of
 
 sectionHeaders :: Parser Char (String, String)
 sectionHeaders = 
-  many0 (ws *> lits "--" *> many1 (ws' *> string) <* ws) *>
+  many0 (ws *> lits "--" *> many1 (ws' *> anything) <* ws) *>
   ( (,)
     <$> (ws *> lits "=== data types ===" *> ws *> anything <* ws)
     <*> (ws *> lits "=== pattern matrix ===" *> ws *> anything <* ws) )

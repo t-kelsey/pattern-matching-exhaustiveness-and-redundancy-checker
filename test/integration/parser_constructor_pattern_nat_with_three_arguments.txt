@@ -1,3 +1,6 @@
+-- Testing the parser for constructor patterns
+-- Case: A Nat constructor pattern has three arguments
+
 === data types ===
 data Nat where
   zero : Nat

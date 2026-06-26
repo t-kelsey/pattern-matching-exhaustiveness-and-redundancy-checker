@@ -1,0 +1,13 @@
+-- Testing semantic validation of constructor return types
+-- Case: A constructor returns the expected type
+
+=== data types ===
+data Citrus where
+  lemon : Citrus
+
+data Fruit where
+  apple  : Fruit
+  citrus : Citrus -> Fruit
+
+=== pattern matrix ===
+x

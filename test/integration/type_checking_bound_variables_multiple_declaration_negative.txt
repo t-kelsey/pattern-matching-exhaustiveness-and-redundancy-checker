@@ -1,0 +1,10 @@
+-- Testing type checking for bound variables
+-- Case: A variable is declared multiple times in one row
+
+=== data types ===
+data Fruit where
+  apple  : Fruit
+  orange : Fruit
+
+=== pattern matrix ===
+x y | x
