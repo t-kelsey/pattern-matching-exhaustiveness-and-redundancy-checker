@@ -416,5 +416,5 @@ getColVarBindings dts col = getColVarBindings' (getColumnBinding dts col) col
             -- if the first pattern is a var, return it with the type of the column
             (PVar v) -> [(v, cb)] : (getColVarBindings' cb ps)
 
-            -- if the first pattern is an or, as both sides still have the same type as the row, VarBinds(r1|r2 ... pn) = VarBinds(r1 r2 ... pn)
-            (POr p1' p2') -> getColVarBindings' cb (p1':p2':ps)
+            -- if the first pattern is an or, both sides are guaranteed to have the same variables, which in turn have the same type as the column
+            (POr p1' _) -> getColVarBindings' cb (p1':ps)

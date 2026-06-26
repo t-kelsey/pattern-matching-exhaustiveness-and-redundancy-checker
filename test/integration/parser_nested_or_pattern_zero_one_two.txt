@@ -1,0 +1,8 @@
+=== data types ===
+data Nat where
+  zero : Nat
+  one  : Nat
+  two  : Nat
+
+=== pattern matrix ===
+zero | (one | two)

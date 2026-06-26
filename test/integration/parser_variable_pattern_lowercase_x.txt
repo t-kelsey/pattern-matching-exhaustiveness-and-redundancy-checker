@@ -1,0 +1,7 @@
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+=== pattern matrix ===
+(succ (succ x))

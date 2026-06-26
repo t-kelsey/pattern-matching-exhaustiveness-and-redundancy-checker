@@ -1,0 +1,13 @@
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+data List where
+  nil : List
+
+data OneOfThose where
+  nat : Nat -> Nat -> List -> OneOfThose
+
+=== pattern matrix ===
+(nat zero (succ zero) nil)

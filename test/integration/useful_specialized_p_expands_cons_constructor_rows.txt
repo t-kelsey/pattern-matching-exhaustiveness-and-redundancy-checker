@@ -1,0 +1,14 @@
+=== data types ===
+data Nat where
+  zero : Nat
+  one  : Nat
+
+data List where
+  nil  : List
+  cons : Nat -> List -> List
+
+=== pattern matrix ===
+(cons one nil) nil
+(cons zero nil) nil
+nil | (nil | y) nil
+x nil

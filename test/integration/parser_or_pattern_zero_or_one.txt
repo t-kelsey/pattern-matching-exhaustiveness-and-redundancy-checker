@@ -1,0 +1,7 @@
+=== data types ===
+data Bit where
+  zero : Bit
+  one  : Bit
+
+=== pattern matrix ===
+zero | one

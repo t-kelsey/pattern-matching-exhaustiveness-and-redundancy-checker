@@ -108,7 +108,7 @@ line = many0 (satisfy (\x -> x /= '\n')) <* satisfy (== '\n')
 
 
 -- A type for the entire structure that is be parsed
-type Match = (DTypes, PMat, VVec)
+type Match = (DTypes, PMat) -- Add VVec here (and below) for explicit column typing. Currently not needed.
 
 
 -- A type for our data type definitions, e.g.: 
@@ -130,7 +130,7 @@ data Pattern = PVar String
             | POr Pattern Pattern
             deriving (Eq, Show)
 
--- A structure for the value vectors, e.g.: "OneOfThose Nat"
+-- A structure for the value vectors, e.g.: "OneOfThose Nat". Obsolete currently.
 type VVec = [Type]
 
 -- Parses any amount of data types and their constructor declarations into a structure
@@ -198,11 +198,17 @@ vvec = ws *> sepBy1 ttype ws1 <* ws
 
 -- Parse the entire match structure
 match :: Parser Char Match
-match =  
-  (,,)
-    <$> (ws *> lits "=== data types ===" *> ws *> dtypes)
-    <*> (ws *> lits "=== pattern matrix ===" *> ws *> pmat)
-    <*> (ws *> lits "=== type ===" *> ws *> vvec)
+match =
+  many0 (ws *> lits "--" *> many1 (ws' *> string) <* ws)
+    *> ( (,)
+          <$> (ws *> lits "=== data types ===" *> ws *> dtypes)
+          <*> (ws *> lits "=== pattern matrix ===" *> ws *> pmat)
+       )
+--  Explicit column typing:
+--  *> ( (,,)
+--    <$> (ws *> lits "=== data types ===" *> ws *> dtypes)
+--    <*> (ws *> lits "=== pattern matrix ===" *> ws *> pmat)
+--    <*> (ws *> lits "=== type ===" *> ws *> vvec) )
 
 match' :: Parser Char Match
 match' = ws *> match <* ws
@@ -224,7 +230,7 @@ checkDTypes :: String -> Either String ()
 checkDTypes s = 
   case runParserEnd sectionHeaders s of
 
-    (dts, _, _):_ -> let dts' = splitOnData dts 
+    (dts, _):_ -> let dts' = splitOnData dts 
                      in findDTypesErrs dts'
 
     _ -> (Left "")
@@ -251,7 +257,7 @@ checkPMat :: String -> Either String ()
 checkPMat s =
   case runParserEnd sectionHeaders s of
 
-    (_, pm, _):_ -> case runParserEnd (many1 line) (pm ++ "\n") of
+    (_, pm):_ -> case runParserEnd (many1 line) (pm ++ "\n") of
 
       [] -> (Left $ "\n\nParse error in pmat, couldn't split lines:\n" ++ pm ++ "\n\n")
       (x:_) -> findPMatErrs x
@@ -276,29 +282,38 @@ findPMatErrs (x:xs) =
 findPMatErrs [] = (Right ())
 
 
+-- Explicit column typing:
 -- Does the error occur in the value vector at the end?
-checkVVec :: String -> Either String ()
-checkVVec s =
-  case runParserEnd sectionHeaders s of
-
-    (_, _, t):_ -> case runParserEnd vvec t of
-      [] -> (Left $ "\n\nParse failure in value vector:\n" ++ t ++ "\n\n")
-      _ -> (Right ())
-    
-    _ -> (Left "")
+--checkVVec :: String -> Either String ()
+--checkVVec s =
+--  case runParserEnd sectionHeaders s of
+--
+--    (_, _, t):_ -> case runParserEnd vvec t of
+--      [] -> (Left $ "\n\nParse failure in value vector:\n" ++ t ++ "\n\n")
+--      _ -> (Right ())
+--    
+--    _ -> (Left "")
 
 checkEmptySections :: String -> Either String ()
 checkEmptySections s = case (head $ runParserEnd sectionHeaders s) of
-    ([],_,_) -> (Left $ "\n\nParse failure, data type definitions are empty.")
-    (_,[],_) -> (Left $ "\n\nParse failure, pattern matrix is empty.")
+    ([],_) -> (Left $ "\n\nParse failure, data type definitions are empty.")
+    (_,[]) -> (Left $ "\n\nParse failure, pattern matrix is empty.")
+--  ([],_,_) -> (Left $ "\n\nParse failure, data type definitions are empty.")
+--  (_,[],_) -> (Left $ "\n\nParse failure, pattern matrix is empty.")
+--  (_,_,[]) -> (Left $ "\n\nParse failure, value vector is empty.")
     _ -> (Right ())
 
-sectionHeaders :: Parser Char (String, String, String)
-sectionHeaders =
-   (,,)
+sectionHeaders :: Parser Char (String, String)
+sectionHeaders = 
+  many0 (ws *> lits "--" *> many1 (ws' *> string) <* ws) *>
+  ( (,)
     <$> (ws *> lits "=== data types ===" *> ws *> anything <* ws)
-    <*> (ws *> lits "=== pattern matrix ===" *> ws *> anything <* ws)
-    <*> (ws *> lits "=== type ===" *> ws *> anything <* ws)
+    <*> (ws *> lits "=== pattern matrix ===" *> ws *> anything <* ws) )
+-- Explicit column typing:
+-- ( (,,)
+--  <$> (ws *> lits "=== data types ===" *> ws *> anything <* ws)
+--  <*> (ws *> lits "=== pattern matrix ===" *> ws *> anything <* ws)
+--  <*> (ws *> lits "=== type ===" *> ws *> anything <* ws) )
 
 
 -- Displaying and testing functions
@@ -306,7 +321,9 @@ sectionHeaders =
 -- pretty[...] is for displaying the parsed data type for debugging and testing
 
 prettyMatch :: Match -> String
-prettyMatch (x, y, z) = "\n=== data types ===\n" ++ prettyDTypes x ++ "\n\n=== pattern matrix ===\n" ++ prettyPMat y ++ "\n\n=== type ===\n" ++ prettyVVec z
+prettyMatch (x, y) = "\n=== data types ===\n" ++ prettyDTypes x ++ "\n\n=== pattern matrix ===\n" ++ prettyPMat y
+-- Explicit column typing:
+-- prettyMatch (x, y, z) = "\n=== data types ===\n" ++ prettyDTypes x ++ "\n\n=== pattern matrix ===\n" ++ prettyPMat y ++ "\n\n=== type ===\n" ++ prettyVVec z
 
 prettyDTypes :: DTypes -> String
 prettyDTypes xs = intercalate "\n\n" $ prettyDType <$> xs

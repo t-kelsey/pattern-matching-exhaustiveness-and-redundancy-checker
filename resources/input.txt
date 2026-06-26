@@ -1,3 +1,6 @@
+
+-- This is a comment
+
 === data types ===
 data Unit where
   tt : Unit
@@ -16,10 +19,4 @@ data OneOfThose where
   unit : Unit -> OneOfThose
 
 === pattern matrix ===
-(nat x y z) w zero
-(list x) w z
-(unit x) (succ (succ y)) z
-(unit x) y z
-
-=== type ===
-OneOfThose Nat
+n (x | x)

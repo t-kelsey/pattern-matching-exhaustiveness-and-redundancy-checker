@@ -1,0 +1,9 @@
+=== data types ===
+data Nat where
+  zero : Nat
+
+data OneOfThose where
+  oneOfThose : OneOfThose
+
+=== pattern matrix ===
+OneOfThose Nat

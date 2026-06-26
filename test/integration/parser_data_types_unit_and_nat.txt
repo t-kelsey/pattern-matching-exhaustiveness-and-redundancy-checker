@@ -1,0 +1,10 @@
+=== data types ===
+data Unit where
+  tt : Unit
+
+data Nat where
+  zero : Nat
+  suc  : Nat -> Nat
+
+=== pattern matrix ===
+tt

@@ -1,6 +1,3 @@
-
--- The name of the test, which function is tested, and what edge case is tested
-
 === data types ===
 data Unit where
   tt : Unit

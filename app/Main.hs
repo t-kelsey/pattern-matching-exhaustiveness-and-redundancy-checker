@@ -15,7 +15,7 @@ main = do
             []      -> putStrLn "\n\n  Parse failure: Could not match input.txt. Check your syntax.\n"
 
             -- If the datatypes and pattern matrix parse, run the warnings function on them
-            ((dts, pm, _):_) -> putStrLn (warnings dts pm)
+            ((dts, pm):_) -> putStrLn (warnings dts pm)
             
 
         (Left errorText) -> putStrLn errorText
@@ -88,43 +88,11 @@ findParseError s = do
     checkEmptySections s  -- Ensure each section isn't empty
     checkDTypes s         -- Ensure no data types are malfomed 
     checkPMat s           -- Ensure the pattern matrix is not malformed
-    checkVVec s           -- Ensure the types (values) given aren't malformed
-
-
--- data Nat where
---     Zero :: Nat
---     Succ :: Nat -> Nat
-
--- ex :: Nat -> Nat -> Nat
--- ex (Succ x) x = Succ x
--- ex _ x = x
-
--- Extension idea 1: Variables instead of Wildcards. Requires Free & Bound defs. Not sure how hard it is.
--- This goes farther than haskell does, I think? Haskell doesn't allow same vars in defs, example:
--- ex :: Nat -> Nat -> Nat
--- ex (succ x) x = ...   haskell "Conflicting definition"
--- ex (succ x) y = ...   fine
--- Added some tests, we'll see
-
--- Extension idea 2: Desugaring partial application: Allow "((succ succ) zero)" instead of just "(succ (succ zero))" 
---     -> maybe not a good idea. Even haskell says "nah". But in lambda calc it's ok.
-
--- Extension idea 3: "Maybe you forgot this case: [...]?" needs I as defined in the paper, should be easy
-
--- Extension idea 4: "This is a useless clause: [...]" already implemented, but can be better with specialization of U as in paper
-
--- Extension idea 5: Desugaring wildcard constructors: 
---          Allow "(_ zero)" which desugars to "zero | (suc zero)",
---          Allow "(succ | pred zero)" -> may require explicit parenthesization in or-patterns. Should be easy.
-
--- Extension idea 6: Semantic checking after parse, "This data type is malformed: xxx"
-
--- Extension idea 7: "Safeguards" as defined by the paper against exponential runtime in real applications
+    -- checkVVec s           -- Ensure the types (values) given aren't malformed. Currently not needed as column type is implicit!
 
 -- TO-DO: 
 -- tests
--- in witness: unique variable declaration
 -- check bound variables again
--- display how each var is bound
--- redundancy
--- delete type (last section in input)
+-- X display how each var is bound
+-- X redundancy 
+-- X delete type (last section in input)
