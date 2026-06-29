@@ -1,0 +1,13 @@
+-- Testing the parser for pattern rows
+-- Case: Uppercase constructors are accepted in rows
+-- Expected: [(PCon OneOfThose []), (PCon Nat [])]
+
+=== data types ===
+data Nat where
+  zero : Nat
+
+data OneOfThose where
+  oneOfThose : OneOfThose
+
+=== pattern matrix ===
+OneOfThose Nat

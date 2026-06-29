@@ -1,0 +1,15 @@
+-- Testing type checking for pattern column types
+-- Case: A pattern has the wrong type for its column
+
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+data Fruit where
+  apple  : Fruit
+  banana : Fruit
+
+=== pattern matrix ===
+zero apple
+apple banana

@@ -1,0 +1,17 @@
+-- Testing the parser for constructor patterns
+-- Case: A Nat constructor pattern has three arguments
+-- Expected: (PCon nat [(PCon zero []), (PCon succ [(PCon zero [])]), (PCon nil [])])
+
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+data List where
+  nil : List
+
+data OneOfThose where
+  nat : Nat -> Nat -> List -> OneOfThose
+
+=== pattern matrix ===
+(nat zero (succ zero) nil)

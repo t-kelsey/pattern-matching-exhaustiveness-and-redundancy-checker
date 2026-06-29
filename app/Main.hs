@@ -6,7 +6,7 @@ import Data.List (intercalate, transpose)
 
 main :: IO ()
 main = do
-    contents <- readFile "test/integration/parser_data_types.txt"
+    contents <- readFile "resources/input.txt"
     case findParseError contents of
 
         (Right ())  -> -- No parse errors detected

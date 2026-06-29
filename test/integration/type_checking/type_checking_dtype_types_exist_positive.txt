@@ -1,0 +1,12 @@
+-- Testing type checking for data type references
+-- Case: Constructor argument types are defined
+
+=== data types ===
+data Nat where
+  zero : Nat
+
+data Box where
+  wrap : Nat -> Box
+
+=== pattern matrix ===
+x

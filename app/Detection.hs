@@ -92,7 +92,6 @@ containsUselessRow dts pm = checkRows ((length pm) - 1)
                 True -> Just (pm!!i)
                 False -> checkRows (i-1)
 
-
 -- Type Checking functions (Semantic tests functions for the parser)
 -- This makes sure the input is viable and already takes some work from the compiler
 -- by preprocessing things like variable handling so the compiler doesn't have to worry about it

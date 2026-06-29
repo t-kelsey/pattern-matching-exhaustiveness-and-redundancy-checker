@@ -1,0 +1,10 @@
+-- Testing type checking for bound variables
+-- Case: Or-pattern branches do not define the same variables
+
+=== data types ===
+data Nat where
+  zero : Nat
+  add : Nat -> Nat -> Nat
+
+=== pattern matrix ===
+(add x y) | (add x z)

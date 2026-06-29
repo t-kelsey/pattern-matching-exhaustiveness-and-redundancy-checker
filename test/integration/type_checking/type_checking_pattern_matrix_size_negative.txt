@@ -1,0 +1,11 @@
+-- Testing type checking for pattern matrix shape
+-- Case: A row is shorter than the matrix width
+
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+=== pattern matrix ===
+zero zero
+zero

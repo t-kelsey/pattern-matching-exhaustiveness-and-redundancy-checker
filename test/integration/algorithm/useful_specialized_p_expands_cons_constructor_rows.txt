@@ -1,0 +1,21 @@
+-- Testing the specializedP helper
+-- Case: Cons constructor rows are expanded
+-- Expected: one nil nil
+--           zero nil nil
+--           y y nil
+--           x x nil
+
+=== data types ===
+data Nat where
+  zero : Nat
+  one  : Nat
+
+data List where
+  nil  : List
+  cons : Nat -> List -> List
+
+=== pattern matrix ===
+(cons one nil) nil
+(cons zero nil) nil
+nil | (nil | y) nil
+x nil

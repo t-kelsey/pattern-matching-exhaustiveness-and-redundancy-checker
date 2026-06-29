@@ -1,0 +1,12 @@
+-- Testing the parser for or-patterns
+-- Case: Nested alternatives parse zero, one, or two
+-- Expected: (POr (PCon zero []) | (POr (PCon one []) | (PCon two [])))
+
+=== data types ===
+data Nat where
+  zero : Nat
+  one  : Nat
+  two  : Nat
+
+=== pattern matrix ===
+zero | (one | two)

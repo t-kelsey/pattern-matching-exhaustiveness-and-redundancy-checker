@@ -1,0 +1,15 @@
+-- Testing exhaustiveness detection non-exhaustive constructors
+-- Case: All constructors are already covered, so the missing row is not useful
+-- Expected: False
+
+=== data types ===
+data Fruit where
+  apple  : Fruit
+  orange : Fruit
+  pear   : Fruit
+
+=== pattern matrix ===
+x
+apple
+orange
+pear

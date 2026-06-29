@@ -271,13 +271,15 @@ findPMatErrs (x:xs) =
   case runParserEnd (many1 $ ws' *> (satisfy (\c -> isAlphaNum c || c == '|' || c == '(' || c == ')')) <* ws') x of
 
     [] -> (Left $ "\n\nParse failure, non-allowed characters detected in pmat at:\n" ++ x ++ "   <---- Here\n" ++ (safeHead xs) ++ "\n...\n\n")
-      where safeHead (y:_) = y
-            safeHead [] = ""
+    
     _ ->
       case runParserEnd (many1 (ws' *> p <* ws')) x of
 
-        [] -> (Left $ "\n\nParse failure in pmat at:\n" ++ x ++ "^---- Here\n" ++ (head xs) ++ "\n...\n\n")
+        [] -> (Left $ "\n\nParse failure in pmat at:\n" ++ x ++ "^---- Here\n" ++ (safeHead xs) ++ "\n...\n\n")
         _  -> findPMatErrs xs
+
+    where safeHead (y:_) = y
+          safeHead [] = ""
 
 findPMatErrs [] = (Right ())
 

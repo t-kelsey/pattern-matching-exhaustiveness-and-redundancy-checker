@@ -1,0 +1,19 @@
+-- Testing the 'uselessRow' function
+-- Case: The matrix contains no useless row
+-- Expected: Nothing
+
+=== data types ===
+data Pear where
+  pear : Pear
+
+data Fruit where
+  apple  : Fruit
+  orange : Fruit
+  pearFruit : Fruit
+
+=== pattern matrix ===
+apple x
+x apple
+orange x
+x orange
+x y

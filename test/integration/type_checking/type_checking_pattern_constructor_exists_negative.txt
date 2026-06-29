@@ -1,0 +1,9 @@
+-- Testing type checking for pattern constructors
+-- Case: A pattern uses an undefined constructor
+
+=== data types ===
+data Nat where
+  zero : Nat
+
+=== pattern matrix ===
+one

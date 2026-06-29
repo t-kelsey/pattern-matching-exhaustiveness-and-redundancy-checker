@@ -1,0 +1,10 @@
+-- Testing type checking for bound variables
+-- Case: A variable is declared multiple times in one row
+
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+=== pattern matrix ===
+x x

@@ -1,0 +1,11 @@
+-- Testing the parser for variable patterns
+-- Case: Lowercase x is parsed as a variable
+-- Expected: (PCon succ [(PCon succ [(PVar x)])])
+
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+=== pattern matrix ===
+(succ (succ x))

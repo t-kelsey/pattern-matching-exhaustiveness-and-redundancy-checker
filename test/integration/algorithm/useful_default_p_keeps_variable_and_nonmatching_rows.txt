@@ -1,0 +1,19 @@
+-- Testing the defaultP helper
+-- Case: Variables and nonmatching rows are preserved
+-- Expected: nil
+--           nil
+
+=== data types ===
+data Nat where
+  zero : Nat
+  one  : Nat
+
+data List where
+  nil  : List
+  cons : Nat -> List -> List
+
+=== pattern matrix ===
+(cons one nil) nil
+(cons zero nil) nil
+nil | (nil | y) nil
+x nil

@@ -1,0 +1,14 @@
+-- Testing exhaustiveness detection exhaughsted constructors
+-- Case: Constructor coverage exhausts the Fruit type
+-- Expected: False
+
+=== data types ===
+data Fruit where
+  apple  : Fruit
+  orange : Fruit
+
+=== pattern matrix ===
+x
+apple x
+x apple
+orange x

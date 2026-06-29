@@ -1,0 +1,11 @@
+-- Testing the parser for data type declarations
+-- Case: A single Unit data type is declared
+-- Expected: Unit
+--             tt : Unit
+
+=== data types ===
+data Unit where
+  tt : Unit
+
+=== pattern matrix ===
+x

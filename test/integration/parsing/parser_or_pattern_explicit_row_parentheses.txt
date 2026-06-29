@@ -1,0 +1,11 @@
+-- Testing the parser for or-patterns
+-- Case: Explicit row parentheses group alternatives
+-- Expected: [(POr (PCon zero []) | (PCon one [])), (PCon zero [])]
+
+=== data types ===
+data Bit where
+  zero : Bit
+  one  : Bit
+
+=== pattern matrix ===
+(zero | one) zero

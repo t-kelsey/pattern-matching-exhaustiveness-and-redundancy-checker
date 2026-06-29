@@ -1,0 +1,11 @@
+-- Testing the parser for constructor patterns
+-- Case: Successor constructors are nested
+-- Expected: (PCon succ [(PCon succ [(PCon zero [])])])
+
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+=== pattern matrix ===
+(succ (succ zero))

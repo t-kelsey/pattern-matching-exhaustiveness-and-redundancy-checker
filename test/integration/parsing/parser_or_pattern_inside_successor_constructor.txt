@@ -1,0 +1,12 @@
+-- Testing the parser for or-patterns
+-- Case: Alternatives appear inside a successor constructor
+-- Expected: (PCon succ [(POr (PCon zero []) | (PCon one []))])
+
+=== data types ===
+data Nat where
+  zero : Nat
+  one  : Nat
+  succ : Nat -> Nat
+
+=== pattern matrix ===
+(succ zero | one)

@@ -1,0 +1,11 @@
+-- Testing type checking for bound variables
+-- Case: The same variable name may be used in separate rows
+
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+=== pattern matrix ===
+x y
+y zero

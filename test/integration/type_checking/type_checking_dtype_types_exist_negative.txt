@@ -1,0 +1,9 @@
+-- Testing type checking for data type references
+-- Case: A constructor argument references an undefined type
+
+=== data types ===
+data Box where
+  wrap : Missing -> Box
+
+=== pattern matrix ===
+x

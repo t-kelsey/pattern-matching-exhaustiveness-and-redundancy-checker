@@ -1,0 +1,28 @@
+-- Testing exhaustiveness detection for exhausted constructors but all subcases matched
+-- Case: A wildcard row makes the matrix exhaustive
+-- Expected: True
+
+=== data types ===
+data Unit where
+  tt : Unit
+
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+data List where
+  nil  : List
+  cons : Nat -> List -> List
+
+data OneOfThose where
+  nat  : Nat -> Nat -> List -> OneOfThose
+  list : List -> OneOfThose
+  unit : Unit -> OneOfThose
+
+=== pattern matrix ===
+(nat x zero y) | (nat zero zero nil)  z
+      (list (cons zero nil))          x
+            (unit x)                  y
+            (nat x y z) w
+            (list x)  y   
+

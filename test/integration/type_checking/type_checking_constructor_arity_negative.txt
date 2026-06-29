@@ -1,0 +1,10 @@
+-- Testing type checking for constructor arity
+-- Case: A constructor pattern has too many arguments
+
+=== data types ===
+data Nat where
+  zero : Nat
+  succ : Nat -> Nat
+
+=== pattern matrix ===
+(succ zero zero)

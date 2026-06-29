@@ -1,0 +1,11 @@
+-- Testing the parser for or-patterns
+-- Case: A Bit pattern matches zero or one
+-- Expected: (POr (PCon zero []) | (PCon one []))
+
+=== data types ===
+data Bit where
+  zero : Bit
+  one  : Bit
+
+=== pattern matrix ===
+zero | one
