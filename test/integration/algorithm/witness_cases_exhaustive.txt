@@ -1,0 +1,12 @@
+-- Testing the witness function
+-- Case: Cases are exhaustive
+-- Expected: IsLeft ()
+
+=== data types ===
+data Nat where
+  zero : Nat
+  one  : Nat
+
+=== pattern matrix ===
+zero x
+one (zero | one)

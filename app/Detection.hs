@@ -15,7 +15,7 @@ exhaustive dts pm = not $ (replicate (length $ head pm) (PVar "x")) `isUsefulTo`
 -- The witness of the exhaustive function. Returns an example row e that is missing in the matrix.
 -- There is an example row e iff P is not exhaustive. e is defined U(P, e) = True. 
 -- Most importantly, Exhaustive(P@e) is NOT defined as true, as that is not the aim of the function I
--- defined in the paper.
+-- defined in the paper. In the paper the funciton is defined with an Int as the current width.
 witness :: DTypes -> PMat -> Int -> Either () PVec
 
 -- Base case I({},0) = ()

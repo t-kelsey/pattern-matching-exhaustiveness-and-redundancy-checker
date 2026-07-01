@@ -1,0 +1,12 @@
+-- Testing the witness function
+-- Case: Multiple constructors are not matched
+-- Expected: one _
+
+=== data types ===
+data Nat where
+  zero : Nat
+  one  : Nat
+  two  : Nat
+
+=== pattern matrix ===
+zero x
