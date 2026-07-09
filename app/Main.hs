@@ -60,12 +60,6 @@ warnings dts pm = case typeCheck dts pm of
           formatBind (v, Just t)  = v ++ ": " ++ t 
           formatBind (v, Nothing) = v ++ ": ?"
 
-          convertVarBindsToString :: [(String, Maybe Type)] -> String
-          convertVarBindsToString [] = ""
-          convertVarBindsToString ((v, mt):xs) = 
-            case mt of
-                Just t  -> v ++ ": " ++ t ++ ",     " ++ convertVarBindsToString xs
-                Nothing -> v ++ ": ?"     ++ ",       " ++ convertVarBindsToString xs
 
           -- Returns the text for redundant cases, also called useless rows
           urTextGen :: String
@@ -76,7 +70,7 @@ warnings dts pm = case typeCheck dts pm of
                 Nothing -> "\n\n    No cases are redundant."
 
           casesForExTextGen :: String
-          casesForExTextGen = "\n\n    Maybe you forgot this case: " ++ case witness dts pm (length $ head pm) of
+          casesForExTextGen = "\n\n    Maybe you forgot this case: " ++ case witness dts pm (length $ pMatHead pm) of
                                                                             (Left ()) -> "Could not find missing case."
                                                                             (Right pv) -> prettyPVec pv
 

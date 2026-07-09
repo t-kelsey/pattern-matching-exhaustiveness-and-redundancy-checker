@@ -19,4 +19,5 @@ data OneOfThose where
   unit : Unit -> OneOfThose
 
 === pattern matrix ===
-n (x | x)
+zero | (succ zero)
+x

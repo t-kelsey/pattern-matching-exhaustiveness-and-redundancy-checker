@@ -237,12 +237,15 @@ checkDTypes s =
 
 -- Helper function to split the datatypes into individual data types
 splitOnData :: String -> [String]
-splitOnData s = tail $ sD [] s
+splitOnData s = safeTail $ sD [] s
   where 
     sD :: String -> String -> [String]
     sD saved ('d':'a':'t':'a':xs) = saved : (sD [] xs)
     sD saved [] = [saved]
     sD saved (x:xs) = sD (saved ++ [x]) xs
+
+    safeTail [] = [""]
+    safeTail (_:xs) = xs
 
 findDTypesErrs :: [String] -> Either String ()
 findDTypesErrs (x:xs) = 
@@ -297,13 +300,16 @@ findPMatErrs [] = (Right ())
 --    _ -> (Left "")
 
 checkEmptySections :: String -> Either String ()
-checkEmptySections s = case (head $ runParserEnd sectionHeaders s) of
+checkEmptySections s = case (safeHead $ runParserEnd sectionHeaders s) of
     ([],_) -> (Left $ "\n\nParse failure, data type definitions are empty.")
     (_,[]) -> (Left $ "\n\nParse failure, pattern matrix is empty.")
 --  ([],_,_) -> (Left $ "\n\nParse failure, data type definitions are empty.")
 --  (_,[],_) -> (Left $ "\n\nParse failure, pattern matrix is empty.")
 --  (_,_,[]) -> (Left $ "\n\nParse failure, value vector is empty.")
     _ -> (Right ())
+
+    where safeHead [] = ([],[])
+          safeHead (x:_) = x
 
 sectionHeaders :: Parser Char (String, String)
 sectionHeaders = 

@@ -10,7 +10,7 @@ import Data.List (sort, transpose, nub, (\\), intersperse)
 -- Check is a pattern matrix is exhaustive under defined data types
 -- P is exhaustive if and only if U(P, (_..._)) is false
 exhaustive :: DTypes -> PMat -> Bool
-exhaustive dts pm = not $ (replicate (length $ head pm) (PVar "x")) `isUsefulTo` pm $ dts
+exhaustive dts pm = not $ (replicate (length $ pMatHead pm) (PVar "x")) `isUsefulTo` pm $ dts
 
 -- The witness of the exhaustive function. Returns an example row e that is missing in the matrix.
 -- There is an example row e iff P is not exhaustive. e is defined U(P, e) = True. 
@@ -45,7 +45,7 @@ witness dts pm n = let sigma = getSigma pm
                             [] -> (Right $ (PVar "_") : pv)
 
                             -- If not, get a constructor not in sigma to display. Can be extended to show all cons.
-                            _ -> let c = head $ invertSigma dts sigma 
+                            _ -> let c = conListHead $ invertSigma dts sigma 
                                  in (Right (PCon c (replicate (getArity dts c) (PVar "_")) : pv))
 
 
@@ -285,7 +285,7 @@ pmatPatternsAreOfRightType dts pm@(r1:rs) = foldr propagate (Right ()) rs
 
                 False -> "'\n Expected:    '"
                                 ++ prettyTypeMaybe cb1' ++ "', bound at:  '"
-                                ++ prettyP (head (dropWhile (\x -> getTypeFromPattern' dts x == "?") ((transpose pm) !! ((length (head pm) - length cbs') - 1))))
+                                ++ prettyP (pVecHead (dropWhile (\x -> getTypeFromPattern' dts x == "?") ((transpose pm) !! ((length (pMatHead pm) - length cbs') - 1))))
                                 ++ "'\n"
 
           prettyPT pm' = prettyType (getTypeFromPattern' dts pm')
@@ -381,7 +381,7 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
           checkUnique (r:rs) stacktrace = case r == (nub r) of
 
             True  -> checkUnique rs stacktrace
-            False -> (Left $ "\n\n  Multiple declaration of variable '" ++ prettyP (head (r \\ (nub r))) ++ "'\n\n  in: '" ++ prettyPVec stacktrace ++ "' of the pattern matrix.\n\n")
+            False -> (Left $ "\n\n  Multiple declaration of variable '" ++ prettyP (pVecHead (r \\ (nub r))) ++ "'\n\n  in: '" ++ prettyPVec stacktrace ++ "' of the pattern matrix.\n\n")
 
           -- This checks the possibilities, to make sure that all variables are defined in all possibilities.
           -- That is equivalent to all or-patterns having the same variables bound on both sides.
@@ -391,7 +391,7 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
           checkBranches (r1:r2:rs) stacktrace = case r1 == r2 of
 
             True  -> checkBranches (r2:rs) stacktrace
-            False -> (Left $ "\n\n Variables '" ++ (intersperse ',' $ prettyP (head (r1 \\ r2)) ++ prettyP (head (r2 \\ r1))) ++ "' are not defined in all branches of or-pattern"
+            False -> (Left $ "\n\n Variables '" ++ (intersperse ',' $ prettyP (pVecHead (r1 \\ r2)) ++ prettyP (pVecHead (r2 \\ r1))) ++ "' are not defined in all branches of or-pattern"
                       ++ "\n\n  in: '" ++ prettyPVec stacktrace ++ "' of the pattern matrix.\n\n")
 
 
@@ -417,3 +417,18 @@ getColVarBindings dts col = getColVarBindings' (getColumnBinding dts col) col
 
             -- if the first pattern is an or, both sides are guaranteed to have the same variables, which in turn have the same type as the column
             (POr p1' _) -> getColVarBindings' cb (p1':ps)
+
+
+
+-- As we check the length during type checking, these functions are just to supress warnings.
+pMatHead :: PMat -> PVec
+pMatHead [] = []
+pMatHead (x:_) = x
+
+pVecHead :: PVec -> Pattern
+pVecHead [] = (PVar "")
+pVecHead (x:_) = x
+
+conListHead :: [Constructor] -> Constructor
+conListHead [] = ""
+conListHead (x:_) = x

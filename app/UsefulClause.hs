@@ -21,27 +21,27 @@ useful _ _ [] = False -- U((), ()) = False
 -- Cases for n > 0:
 
 -- 1. Case constructed pattern q1 = c(p1, p2, ...): U(P, q) <-> U(S(c, P), S(c, q))
-useful dts p q@((PCon c rs): qs) = useful dts (specializedP c (length rs) p) specV
+useful dts pm q@((PCon c rs): _) = useful dts (specializedP c (length rs) pm) specV
     where specV = case specializedV c (length rs) q of
                     (Just sV) -> sV
                     Nothing -> error "This case isn't possible"
 
 -- 2. Case wildcard _:
-useful dts p q@(v@(PVar var): qs) = let s = getSigma p 
+useful dts pm q@((PVar _): qs) = let s = getSigma pm
                               in case isComplete dts s of 
 
                                 -- 2.(a) Case wildcard and sigma is complete: U(P, q) <-> \Or_{k=1}^z useful(S(c_k, P), S(c_k, q))
-                                True -> or [useful dts (specializedP c_k (getArity dts c_k) p) (specV c_k) | c_k <- s]
+                                True -> or [useful dts (specializedP c_k (getArity dts c_k) pm) (specV c_k) | c_k <- s]
                                 
                                     where specV c_k = case specializedV c_k (getArity dts c_k) q of
                                                     (Just sV) -> sV
                                                     Nothing -> error "This case isn't possible"
 
                                 -- 2.(b). Case wildcard and sigma is not complete: U(P, (_ q_2 ... q_n)) = U(D(P), (q_2 ... q_n))
-                                False -> useful dts (defaultP p) qs
+                                False -> useful dts (defaultP pm) qs
 
 -- 3. Case or-pattern (r1 | r2): U(P, (r1 | r2) q_2 ... q_n) = U(P, r1 q_2 ... q_n) \or U(P, r2 q_2 ... q_n)
-useful dts p q@((POr r1 r2): qs) = or [useful dts p (r1:qs), useful dts p (r2:qs)]
+useful dts pm ((POr r1 r2): qs) = or [useful dts pm (r1:qs), useful dts pm (r2:qs)]
 
 
 -- The specialized matrix S(c,P) for constructor patterns. Recursive! The arity of the constructor is needed for the wildcard case.
@@ -71,7 +71,7 @@ specializedV c a v = case v of
                         -- The maybe is because rs ++ ps can be [] (last column PCon with arity 0)
 
     -- 2. Case row is wildcard (in our case a var)
-    (pv@(PVar v):ps)    -> Just (replicate a pv ++ ps)
+    (pv@(PVar _):ps)    -> Just (replicate a pv ++ ps)
     _ -> Nothing
 
 
@@ -95,15 +95,17 @@ defaultP (v:vs) = case v of
 -- The set of constructors that appear as root constructors of the patterns of P first column (and or-patterns recursively)
 getSigma :: PMat -> [Constructor]
 getSigma [] = []
-getSigma xs = nub $ getCons xs
+getSigma pm = nub $ getCons pm
 
         where getCons [] = [] 
-              getCons (x:xs) = case x of 
+              getCons (row:rs) = case row of 
                 [] -> []
-                (y:ys) -> case y of
-                  (PCon c ts) -> c : (getCons xs)
-                  (POr r1 r2) -> (getCons [[r1], [r2]]) ++ (getCons xs)
-                  _ -> getCons xs
+                (pat:_) -> case pat of
+                  (PCon c _) -> c : (getCons rs)  -- We're looking for only the root constructor, so we can throw cs away
+
+                  -- Here we check both sides as they can have separate constructors (ex. zero | (succ zero))
+                  (POr r1 r2) -> (getCons [[r1], [r2]]) ++ (getCons rs)
+                  _ -> getCons rs
 
 
 -- Given a constructor, get it's argument types from the data type defs.
@@ -132,7 +134,7 @@ getReturnTypeFromCon c dts = last $ getArgsFromCon c dts
 -- Get the type of a pattern, if possible. Here it suffices to look until we find a constructor, as every pattern in a column
 -- has to have the same type. (POr zero nil) is not legal, because zero -> Nat /= nil -> List
 getTypeFromPattern :: DTypes -> Pattern -> Maybe Type
-getTypeFromPattern dts (PCon c cs) = (Just $ getReturnTypeFromCon dts c)
+getTypeFromPattern dts (PCon c _) = (Just $ getReturnTypeFromCon dts c)
 getTypeFromPattern _ (PVar _) = Nothing
 getTypeFromPattern dts (POr p1 p2) = case getTypeFromPattern dts p1 of
                                     (Just t) -> (Just t)
@@ -142,7 +144,7 @@ getTypeFromPattern dts (POr p1 p2) = case getTypeFromPattern dts p1 of
 -- Decides if sigma (set of constructers in first column) is complete within their data type
 -- If the first column only has wildcards then obviously sigma is not complete
 isComplete :: DTypes -> [Constructor] -> Bool
-isComplete dts [] = False
+isComplete _ [] = False
 isComplete dts cs@(c:_) = 
     case [ first <$> cds | (t, cds) <- dts, t == getTypeFromCon dts c] of
         (cs': []) -> areSetsEqual cs cs'
@@ -150,19 +152,20 @@ isComplete dts cs@(c:_) =
     where first (x, _) = x
 
 invertSigma :: DTypes -> [Constructor] -> [Constructor]
-invertSigma dts [] = []
+invertSigma _ [] = []
 invertSigma dts cs@(c:_) =
     case [ first <$> cds | (t, cds) <- dts, t == getTypeFromCon dts c] of
         (cs': []) -> cs' `simpleSetSubtract` cs
+        _         -> error "Could not find constructor definiton. This is a bug."
 
     where first (x, _) = x
 
 areSetsEqual :: (Ord a) => [a] -> [a] -> Bool
 areSetsEqual xs ys = sort xs == sort ys
 
--- This subtract only works when ys is a subset of xs
+-- This subtract only works when s2 (ys) is a subset of s1 (xs), so (a (b c) d) -> (a d)
 simpleSetSubtract :: (Ord a) => [a] -> [a] -> [a]
-xs `simpleSetSubtract` ys = subtr (sort xs) (sort ys)
+s1 `simpleSetSubtract` s2 = subtr (sort s1) (sort s2)
 
     where subtr xs [] = xs
           subtr (x:xs) ys'@(y:ys) = case x == y of
@@ -175,11 +178,11 @@ getBindings [] = []
 getBindings (r1:pm) = concat (getBFromPat <$> r1) ++ getBindings pm
 
     where getBFromPat :: Pattern -> [Pattern]
-          getBFromPat (PCon c rs) = concat $ getBFromPat <$> rs
-          getBFromPat pv@(PVar v) = [pv]
-          getBFromPat (POr p1 p2) = getBFromPat p1 ++ getBFromPat p1
+          getBFromPat (PCon _ rs) = concat $ getBFromPat <$> rs
+          getBFromPat pv@(PVar _) = [pv]
+          getBFromPat (POr p1 p2) = getBFromPat p1 ++ getBFromPat p2
 
 
 -- More practical infix version
 isUsefulTo :: PVec -> PMat -> DTypes -> Bool
-(q `isUsefulTo` p) dts = useful dts p q
+(q `isUsefulTo` pm) dts = useful dts pm q
