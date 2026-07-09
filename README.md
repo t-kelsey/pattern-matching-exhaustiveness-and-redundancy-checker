@@ -62,10 +62,10 @@ generated, and of course the exhaustiveness check result, along with semantic ch
 
 ---
 
-##### Workflow
+##### Run on your input 
 `cabal run`
-input -> parser -> main
+'resources/input.txt' -> Parser.hs -> Main.hs
 
-##### Test workflow
+##### Tests
 `cabal test`
-test_input -> parser -> test
+'test/integration/*.txt -> Parser.hs -> resources/Test.hs -> Main.hs

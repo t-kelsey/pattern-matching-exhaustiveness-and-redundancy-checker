@@ -85,8 +85,11 @@ findParseError s = do
     -- checkVVec s           -- Ensure the types (values) given aren't malformed. Currently not needed as column type is implicit!
 
 -- TO-DO: 
+-- Test.hs what to do?
 -- tests
--- check bound variables again
+-- warnings in tests
+-- readme redo
+-- X check bound variables again
 -- X display how each var is bound
 -- X redundancy 
 -- X delete type (last section in input)
