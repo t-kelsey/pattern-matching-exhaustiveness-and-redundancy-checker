@@ -6,12 +6,14 @@ import Data.List (intercalate, transpose)
 
 main :: IO ()
 main = do
+    -- Try and find any parse errors before parsing 
     contents <- readFile "resources/input.txt"
     case findParseError contents of
 
         (Right ())  -> -- No parse errors detected
             case runParserEnd match' contents of
             
+            -- Could not find any parse errors but parse still failed
             []      -> putStrLn "\n\n  Parse failure: Could not match input.txt. Check your syntax.\n"
 
             -- If the datatypes and pattern matrix parse, run the warnings function on them
@@ -85,10 +87,9 @@ findParseError s = do
     -- checkVVec s           -- Ensure the types (values) given aren't malformed. Currently not needed as column type is implicit!
 
 -- TO-DO: 
--- Test.hs what to do?
--- tests
+-- X tests
 -- warnings in tests
--- readme redo
+-- X readme redo
 -- X check bound variables again
 -- X display how each var is bound
 -- X redundancy 

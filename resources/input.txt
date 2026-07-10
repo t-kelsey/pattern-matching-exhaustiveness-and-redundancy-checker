@@ -20,4 +20,4 @@ data OneOfThose where
 
 === pattern matrix ===
 zero | (succ zero)
-x
+(succ (succ zero))
