@@ -85,12 +85,4 @@ findParseError s = do
     checkDTypes s         -- Ensure no data types are malfomed 
     checkPMat s           -- Ensure the pattern matrix is not malformed
     -- checkVVec s           -- Ensure the types (values) given aren't malformed. Currently not needed as column type is implicit!
-
--- TO-DO: 
--- X tests
--- warnings in tests
--- X readme redo
--- X check bound variables again
--- X display how each var is bound
--- X redundancy 
--- X delete type (last section in input)
+    

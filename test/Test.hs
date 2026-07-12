@@ -19,7 +19,7 @@ main = hspec $ do
                contents <- readFile "test/integration/parsing/parser_data_types.txt"
                case runParserEnd match' contents of
 
-                  ((dts, _):_) -> (prettyDType $ head dts) `shouldBe` "Unit\n  tt : Unit"
+                  ((dts, _):_) -> (prettyDType $ dtsHead dts) `shouldBe` "Unit\n  tt : Unit"
                   _            -> error ""
 
             it "Parser: pattern matrix is correctly parsed" $ do
@@ -33,7 +33,7 @@ main = hspec $ do
                contents <- readFile "test/integration/parsing/parser_pattern_row_uppercase_constructors.txt"
                case runParserEnd match' contents of
 
-                  ((_, pm):_) -> (debugPVec $ head pm) `shouldBe` "[(PCon OneOfThose []), (PCon Nat [])]"
+                  ((_, pm):_) -> (debugPVec $ pMatHead pm) `shouldBe` "[(PCon OneOfThose []), (PCon Nat [])]"
                   _            -> error ""
 
             it "Parser: test file is correctly loaded and parsed" $ do
@@ -50,14 +50,14 @@ main = hspec $ do
                contents <- readFile "test/integration/parsing/parser_constructor_pattern_nat_with_three_arguments.txt"
                case runParserEnd match' contents of
 
-                  ((_, pm):_) -> (debugP $ head $ head pm) `shouldBe` "(PCon nat [(PCon zero []), (PCon succ [(PCon zero [])]), (PCon nil [])])"
+                  ((_, pm):_) -> (debugP $ pVecHead $ pMatHead pm) `shouldBe` "(PCon nat [(PCon zero []), (PCon succ [(PCon zero [])]), (PCon nil [])])"
                   _            -> error ""
 
             it "Parser: Constructor pattern with = 0 arity is handled correctly" $ do
                contents <- readFile "test/integration/parsing/parser_constructor_pattern_nested_successor.txt"
                case runParserEnd match' contents of
 
-                  ((_, pm):_) -> (debugP $ head $ head pm) `shouldBe` "(PCon succ [(PCon succ [(PCon zero [])])])"
+                  ((_, pm):_) -> (debugP $ pVecHead $ pMatHead pm) `shouldBe` "(PCon succ [(PCon succ [(PCon zero [])])])"
                   _            -> error ""
 
             -- Var tests
@@ -65,14 +65,14 @@ main = hspec $ do
                contents <- readFile "test/integration/parsing/parser_variable_pattern_lowercase_x.txt"
                case runParserEnd match' contents of
 
-                  ((_, pm):_) -> (debugP $ head $ head pm) `shouldBe` "(PCon succ [(PCon succ [(PVar x)])])"
+                  ((_, pm):_) -> (debugP $ pVecHead $ pMatHead pm) `shouldBe` "(PCon succ [(PCon succ [(PVar x)])])"
                   _            -> error ""
 
             it "Parser: Variable pattern is correctly negatively identified" $ do
                contents <- readFile "test/integration/parsing/parser_constructor_pattern_uppercase_x.txt"
                case runParserEnd match' contents of
 
-                  ((_, pm):_) -> (debugP $ head $ head pm) `shouldBe` "(PCon succ [(PCon succ [(PCon X [])])])"
+                  ((_, pm):_) -> (debugP $ pVecHead $ pMatHead pm) `shouldBe` "(PCon succ [(PCon succ [(PCon X [])])])"
                   _            -> error ""
 
             -- Or tests
@@ -80,35 +80,35 @@ main = hspec $ do
                contents <- readFile "test/integration/parsing/parser_or_pattern_zero_or_one.txt"
                case runParserEnd match' contents of
 
-                  ((_, pm):_) -> (debugP $ head $ head pm) `shouldBe` "(POr (PCon zero []) | (PCon one []))"
+                  ((_, pm):_) -> (debugP $ pVecHead $ pMatHead pm) `shouldBe` "(POr (PCon zero []) | (PCon one []))"
                   _            -> error ""
 
             it "Parser: Or pattern implicit parenthesization is correct on rows" $ do
                contents <- readFile "test/integration/parsing/parser_or_pattern_implicit_row_parentheses.txt"
                case runParserEnd match' contents of
 
-                  ((_, pm):_) -> (debugPVec $ head pm) `shouldBe` "[(POr (PCon zero []) | (PCon one [])), (PCon zero [])]"
+                  ((_, pm):_) -> (debugPVec $ pMatHead pm) `shouldBe` "[(POr (PCon zero []) | (PCon one [])), (PCon zero [])]"
                   _            -> error ""
 
             it "Parser: Or pattern explicit parenthesization is correct on rows" $ do
                contents <- readFile "test/integration/parsing/parser_or_pattern_explicit_row_parentheses.txt"
                case runParserEnd match' contents of
 
-                  ((_, pm):_) -> (debugPVec $ head pm) `shouldBe` "[(POr (PCon zero []) | (PCon one [])), (PCon zero [])]"
+                  ((_, pm):_) -> (debugPVec $ pMatHead pm) `shouldBe` "[(POr (PCon zero []) | (PCon one [])), (PCon zero [])]"
                   _            -> error ""
 
             it "Parser: Or pattern is correctly identified in constructor pattern" $ do
                contents <- readFile "test/integration/parsing/parser_or_pattern_inside_successor_constructor.txt"
                case runParserEnd match' contents of
 
-                  ((_, pm):_) -> (debugP $ head $ head pm) `shouldBe` "(PCon succ [(POr (PCon zero []) | (PCon one []))])"
+                  ((_, pm):_) -> (debugP $ pVecHead $ pMatHead pm) `shouldBe` "(PCon succ [(POr (PCon zero []) | (PCon one []))])"
                   _            -> error ""
 
             it "Parser: Or pattern is correct in nested or-patterns with mixed implicit and explicit parenthesization" $ do
                contents <- readFile "test/integration/parsing/parser_nested_or_pattern_zero_one_two.txt"
                case runParserEnd match' contents of
 
-                  ((_, pm):_) -> (debugP $ head $ head pm) `shouldBe` "(POr (PCon zero []) | (POr (PCon one []) | (PCon two [])))"
+                  ((_, pm):_) -> (debugP $ pVecHead $ pMatHead pm) `shouldBe` "(POr (PCon zero []) | (POr (PCon one []) | (PCon two [])))"
                   _            -> error ""
 
             -- Parser semantic tests
@@ -152,14 +152,14 @@ main = hspec $ do
                contents <- readFile "test/integration/algorithm/useful_clause_nat_zero_zero_is_not_useful.txt"
                case runParserEnd match' contents of
 
-                  ((dts, pm):_) -> (head pm `isUsefulTo` tail pm $ dts) `shouldBe` False
+                  ((dts, pm):_) -> (pMatHead pm `isUsefulTo` pMatTail pm $ dts) `shouldBe` False
                   _            -> error ""
 
             it "Useful clause: Main function test positive example" $ do
                contents <- readFile "test/integration/algorithm/useful_clause_nat_zero_x_nil_is_useful.txt"
                case runParserEnd match' contents of
 
-                  ((dts, pm):_) -> (head pm `isUsefulTo` tail pm $ dts) `shouldBe` True
+                  ((dts, pm):_) -> (pMatHead pm `isUsefulTo` pMatTail pm $ dts) `shouldBe` True
                   _            -> error ""
 
             it "Detection: exhaustive function general test negative example" $ do
@@ -180,21 +180,21 @@ main = hspec $ do
                contents <- readFile "test/integration/algorithm/detection_exhaustiveness_fruit_missing_constructor_is_useful.txt"
                case runParserEnd match' contents of
 
-                  ((dts, pm):_) -> (head pm `isUsefulTo` tail pm $ dts) `shouldBe` True
+                  ((dts, pm):_) -> (pMatHead pm `isUsefulTo` pMatTail pm $ dts) `shouldBe` True
                   _            -> error ""
 
             it "Detection: exhaustive function test edge case all constructors used of data type" $ do
                contents <- readFile "test/integration/algorithm/detection_exhaustiveness_fruit_all_constructors_used_is_not_useful.txt"
                case runParserEnd match' contents of
 
-                  ((dts, pm):_) -> (head pm `isUsefulTo` tail pm $ dts) `shouldBe` False
+                  ((dts, pm):_) -> (pMatHead pm `isUsefulTo` pMatTail pm $ dts) `shouldBe` False
                   _            -> error ""
 
             it "Detection: exhaustive function test edge case constructor exhaustion" $ do
                contents <- readFile "test/integration/algorithm/detection_exhaustiveness_fruit_constructor_exhaustion.txt"
                case runParserEnd match' contents of
 
-                  ((dts, pm):_) -> (head pm `isUsefulTo` tail pm $ dts) `shouldBe` False
+                  ((dts, pm):_) -> (pMatHead pm `isUsefulTo` pMatTail pm $ dts) `shouldBe` False
                   _            -> error ""
 
             it "Detection: contains useless row function positive example" $ do
@@ -215,14 +215,14 @@ main = hspec $ do
                contents <- readFile "test/integration/algorithm/witness_cases_exhaustive.txt"
                case runParserEnd match' contents of
 
-                  ((dts, pm):_) -> (witness dts pm (length $ head pm)) `shouldSatisfy` isLeft
+                  ((dts, pm):_) -> (witness dts pm (length $ pMatHead pm)) `shouldSatisfy` isLeft
                   _            -> error ""
 
             it "Witness: multiple constructors missing" $ do
                contents <- readFile "test/integration/algorithm/witness_multiple_constructors_missing.txt"
                case runParserEnd match' contents of
 
-                  ((dts, pm):_) -> (witness dts pm (length $ head pm)) `shouldBe` (Right $ [(PCon "one" []), (PVar "_")])
+                  ((dts, pm):_) -> (witness dts pm (length $ pMatHead pm)) `shouldBe` (Right $ [(PCon "one" []), (PVar "_")])
                   _            -> error ""
 
             it "Type checking: Constructor multiple declaration" $ do

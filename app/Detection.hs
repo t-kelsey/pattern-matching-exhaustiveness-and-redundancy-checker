@@ -425,10 +425,18 @@ pMatHead :: PMat -> PVec
 pMatHead [] = []
 pMatHead (x:_) = x
 
+pMatTail :: PMat -> [PVec]
+pMatTail [] = []
+pMatTail (_:xs) = xs
+
+dtsHead :: DTypes -> DType
+dtsHead [] = ("badHead", [])
+dtsHead (x:_) = x
+
 pVecHead :: PVec -> Pattern
-pVecHead [] = (PVar "")
+pVecHead [] = (PVar "badHead")
 pVecHead (x:_) = x
 
 conListHead :: [Constructor] -> Constructor
-conListHead [] = ""
+conListHead [] = "badHead"
 conListHead (x:_) = x
