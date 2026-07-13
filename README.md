@@ -99,7 +99,7 @@ True
 False
 ```
 
-Now as the big step to get a matrix and not a vector, remember that functions can have multiple arguments (even if the pretend they don't @haskell)
+Now as the big step to get a matrix and not a vector, remember that functions can have multiple arguments (or atleast through currying are equivalent to)
 ```hs
 define function 'and' x y as
 	if x == True AND y == True then return True
@@ -121,7 +121,7 @@ True True
 x    y 
 ```
 
-Here `x` and `y` are like wildcards: We don't care what they are, but we can use them in our `do a` to be able to use them in future computations!
+Here `x` and `y` are like wildcards: We don't care what they are, but we can use them in our `do b` to be able to use them in future computations!
 
 Finally, realize that constructors can take arguments themselves which we can match too! So instead of the nullary constructor `True` of type `Bool`, we can match constructors with any arity! If we define a constructor `boolCons : Bool -> List -> List` we can match complicated values such as `(boolCons True [])` ([] is also a constructor of `List`).
 

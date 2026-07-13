@@ -1,4 +1,5 @@
--- Code adapted from the lecture Functional Programming at the University of Freiburg
+-- Using the parser class defined in the lecture Functional Programming at the University of Freiburg
+-- Prof. Dr. Peter Thiemann, Hannes Saffrich, 2024
 -- https://proglang.github.io/teaching/24ws/fp.html
 
 module Parser where

@@ -364,18 +364,18 @@ pmatVarsUnique pm = foldr propagate (Right ()) pm
           -- So whenever there is an or-pattern, we split the branches to compare individually, and the make sure each branch
           -- has the same vars. The logic is as follows:
 
-          -- unique( (p1 | p_2) ) = unique( R(p1) ) && unique( R(p_2) ) && R(p1) `setEqual` R(p_2) 
+          -- unique( (p_1 | p_2) ) = unique( R(p_1) ) && unique( R(p_2) ) && R(p_1) `setEqual` R(p_2) 
 
           -- Case 3: If the pattern is an or-pattern, then create two new possibilities in the matrix.
           getVars ((POr p1 p2):ri) = (liftA2 (++)) (getVars [p1] ++ getVars [p2]) (getVars ri)
 
 
 
-          -- Here we finally define unique. ri is row i, the induction is over the rows
+          -- Here we finally define unique. r_i is row i, the induction is over the rows
 
           -- Base cases, if no row: unique(()) = True
 
-          -- Inductive case: unique((ri)) = True iff for all v_i, v_j in R(ri), v_i /= v_j && unique((ri-1))
+          -- Inductive case: unique((r_i)) = True iff for all v_i, v_j in R(ri), v_i /= v_j && unique((r_i-1))
           checkUnique :: [[Pattern]] -> [Pattern] -> Either String ()
           checkUnique [] _ = (Right ())
           checkUnique (r:rs) stacktrace = case r == (nub r) of

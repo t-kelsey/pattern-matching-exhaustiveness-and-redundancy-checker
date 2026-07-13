@@ -1,6 +1,4 @@
 
--- This is a comment
-
 === data types ===
 data Unit where
   tt : Unit
@@ -19,5 +17,5 @@ data OneOfThose where
   unit : Unit -> OneOfThose
 
 === pattern matrix ===
-zero | (succ zero)
-(succ (succ zero))
+zero
+succ(succ(x))
