@@ -17,5 +17,6 @@ data OneOfThose where
   unit : Unit -> OneOfThose
 
 === pattern matrix ===
-zero
-succ(succ(x))
+x y z w
+y z x w
+x (y | (succ n)) z w
