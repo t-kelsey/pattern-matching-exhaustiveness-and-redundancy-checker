@@ -7,7 +7,7 @@ import Test.Hspec
 import Data.List (intercalate)
 import Data.Either (isLeft, isRight)
 
--- TODO : All test cases that have a specific output expected with `shouldBe`, should also have that output in the comment of the corresponding .txt files, for clarity what is being tested.
+-- The main test suite for testing all the individual functions as integration tests.
 main :: IO ()
 main = hspec $ do
         describe "Prelude.head" $ do
